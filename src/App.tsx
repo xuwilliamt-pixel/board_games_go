@@ -13,10 +13,13 @@ function App() {
   const freeDice = useGameStore((s) => s.freeDice);
   const addDice = useGameStore((s) => s.addDice);
 
-  // Guarantee at least one D12 dice exists in play mode
+  // Place D12 dice on the RIGHT side of canvas on first load
   useEffect(() => {
     if (currentView === 'play' && freeDice.length === 0) {
-      addDice(60, 60, 12);
+      // canvas width = viewport - left panel (226) - right panel (286)
+      const canvasW = window.innerWidth - 226 - 286;
+      const diceX = canvasW - 110; // near right edge
+      addDice(diceX, 60, 12);
     }
   }, [currentView, freeDice.length, addDice]);
 

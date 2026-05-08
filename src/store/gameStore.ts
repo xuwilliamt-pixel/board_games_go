@@ -14,13 +14,14 @@ const initialCharacters: Character[] = [
   { id: 'boss-1', name: '魔王', role: 'boss',    emoji: '👾', color: '#f97316', hpBars: [true, true, true, true, true], attack: 8, defense: 5 },
 ];
 
-// ── Initial Board Pieces ───────────────────────────────────────
+// Pieces are positioned roughly where a centered 5x5 board would be on a 1280px screen
+// Board left≈225, top≈120, each cell≈70px
 const initialBoardPieces: BoardPiece[] = [
-  { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#ef4444', row: 4, col: 1 },
-  { id: 'piece-2', label: '法', role: 'mage',    emoji: '🧙', color: '#8b5cf6', row: 4, col: 2 },
-  { id: 'piece-3', label: '弓', role: 'archer',  emoji: '🏹', color: '#10b981', row: 4, col: 3 },
-  { id: 'piece-4', label: '癒', role: 'healer',  emoji: '💊', color: '#06b6d4', row: 3, col: 2 },
-  { id: 'piece-5', label: '魔', role: 'boss',    emoji: '👾', color: '#f97316', row: 0, col: 2 },
+  { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#ef4444', x: 295, y: 415, zIndex: 6 },
+  { id: 'piece-2', label: '法', role: 'mage',    emoji: '🧙', color: '#8b5cf6', x: 365, y: 415, zIndex: 6 },
+  { id: 'piece-3', label: '弓', role: 'archer',  emoji: '🏹', color: '#10b981', x: 435, y: 415, zIndex: 6 },
+  { id: 'piece-4', label: '癒', role: 'healer',  emoji: '💊', color: '#06b6d4', x: 365, y: 345, zIndex: 6 },
+  { id: 'piece-5', label: '魔', role: 'boss',    emoji: '👾', color: '#f97316', x: 365, y: 135, zIndex: 6 },
 ];
 
 // ── Mock Cards ─────────────────────────────────────────────────
@@ -52,9 +53,7 @@ const initialState: GameState = {
   decks: initialDecks,
   cards: mockCards,
   freeCards: [],
-  freeDice: [
-    { id: 'dice-1', x: 40, y: 40, sides: 12, currentValue: 1, isRolling: false, zIndex: 5 },
-  ],
+  freeDice: [], // dice added by App.tsx useEffect at right-side position
   diceHistory: [],
   topZIndex: 10,
   characters: initialCharacters,
@@ -87,10 +86,11 @@ interface GameStore extends GameState {
   resetCharacterHP: (characterId: string) => void;
 
   // Board Pieces
-  addBoardPiece: (piece: Omit<BoardPiece, 'id'>) => void;
-  moveBoardPiece: (pieceId: string, row: number, col: number) => void;
+  addBoardPiece: (piece: Omit<BoardPiece, 'id' | 'zIndex'>) => void;
+  moveBoardPiece: (pieceId: string, x: number, y: number) => void;
   removeBoardPiece: (pieceId: string) => void;
   updateBoardPieceLabel: (pieceId: string, label: string) => void;
+  bringPieceToFront: (pieceId: string) => void;
 
   // Deck Builder
   addCard: (card: Omit<Card, 'id'>) => void;
@@ -219,13 +219,17 @@ export const useGameStore = create<GameStore>()(
 
       // ── Board Pieces ────────────────────────────────────────────
       addBoardPiece: (piece) =>
-        set((state) => ({
-          boardPieces: [...state.boardPieces, { ...piece, id: `piece_${genId()}` }],
-        })),
+        set((state) => {
+          const newZ = state.topZIndex + 1;
+          return {
+            boardPieces: [...state.boardPieces, { ...piece, id: `piece_${genId()}`, zIndex: newZ }],
+            topZIndex: newZ,
+          };
+        }),
 
-      moveBoardPiece: (pieceId, row, col) =>
+      moveBoardPiece: (pieceId, x, y) =>
         set((state) => ({
-          boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, row, col } : p),
+          boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, x, y } : p),
         })),
 
       removeBoardPiece: (pieceId) =>
@@ -233,6 +237,15 @@ export const useGameStore = create<GameStore>()(
 
       updateBoardPieceLabel: (pieceId, label) =>
         set((state) => ({ boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, label } : p) })),
+
+      bringPieceToFront: (pieceId) =>
+        set((state) => {
+          const newZ = state.topZIndex + 1;
+          return {
+            boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, zIndex: newZ } : p),
+            topZIndex: newZ,
+          };
+        }),
 
       // ── Deck Builder ────────────────────────────────────────────
       addCard: (cardData) =>
@@ -302,7 +315,7 @@ export const useGameStore = create<GameStore>()(
         }),
     }),
     {
-      name: 'board-game-storage-v4',
+      name: 'board-game-storage-v5',
       partialize: (state) => ({
         cards: state.cards,
         decks: state.decks,

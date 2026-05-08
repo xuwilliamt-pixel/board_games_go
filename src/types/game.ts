@@ -64,15 +64,16 @@ export interface Character {
   defense: number;
 }
 
-/** A token/piece placed on the 5x5 board */
+/** A token/piece — free-floating anywhere on the canvas */
 export interface BoardPiece {
   id: string;
   label: string;
   role: CharacterRole;
   emoji: string;
   color: string;
-  row: number;  // 0-4
-  col: number;  // 0-4
+  x: number;      // canvas-relative pixel position
+  y: number;
+  zIndex: number;
 }
 
 export interface GameState {

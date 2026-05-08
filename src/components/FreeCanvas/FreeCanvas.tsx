@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { FreeCard } from '../FreeCard/FreeCard';
 import { FreeDice } from '../FreeDice/FreeDice';
+import { FreePiece } from '../FreePiece/FreePiece';
 import { BoardGrid } from '../BoardGrid/BoardGrid';
 
 interface FreeCanvasProps {
@@ -11,12 +12,14 @@ interface FreeCanvasProps {
 export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
   const freeCards = useGameStore((s) => s.freeCards);
   const freeDice = useGameStore((s) => s.freeDice);
+  const boardPieces = useGameStore((s) => s.boardPieces);
   const placeCardFromDeck = useGameStore((s) => s.placeCardFromDeck);
   const decks = useGameStore((s) => s.decks);
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
+      // Don't draw if clicking on a piece or card
       if (target !== e.currentTarget) return;
       const firstDeckId = Object.keys(decks)[0];
       if (!firstDeckId) return;
@@ -54,7 +57,7 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
       style={theme === 'day' ? dayBg : nightBg}
       onDoubleClick={handleDoubleClick}
     >
-      {/* Felt texture overlay */}
+      {/* Felt texture */}
       <div className="absolute inset-0 pointer-events-none" style={{
         backgroundImage: theme === 'day'
           ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'0.7\' fill=\'rgba(80,60,40,0.04)\'/%3E%3C/svg%3E")'
@@ -62,26 +65,25 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
         backgroundSize: '4px 4px',
       }} />
 
-      {/* ── 5x5 Board — centered in canvas ── */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* ── 5x5 Board — centered, z-index 2 (below cards/pieces) ── */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 2 }}>
         <div className="pointer-events-auto">
           <BoardGrid theme={theme} />
         </div>
       </div>
 
-      {/* ── Free Dice ── */}
-      {freeDice.map((d) => (
-        <FreeDice key={d.id} dice={d} />
-      ))}
+      {/* ── Free Dice (z-index from store, always above board) ── */}
+      {freeDice.map((d) => <FreeDice key={d.id} dice={d} />)}
 
-      {/* ── Free Cards ── */}
-      {freeCards.map((c) => (
-        <FreeCard key={c.instanceId} card={c} theme={theme} />
-      ))}
+      {/* ── Free-floating Board Pieces (draggable tokens) ── */}
+      {boardPieces.map((p) => <FreePiece key={p.id} piece={p} />)}
+
+      {/* ── Free Cards (z-index from store, above board) ── */}
+      {freeCards.map((c) => <FreeCard key={c.instanceId} card={c} theme={theme} />)}
 
       {/* Empty state hint */}
       {freeCards.length === 0 && freeDice.length <= 1 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none" style={{ zIndex: 1 }}>
           <div
             className="px-6 py-3 rounded-2xl shadow-lg"
             style={{
