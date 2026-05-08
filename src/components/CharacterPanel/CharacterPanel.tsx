@@ -150,11 +150,10 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' 
   const isDark = theme === 'night';
 
   const handleAddPiece = (preset: typeof ROLE_PRESETS[0]) => {
-    // Place at a random spot near the center of the canvas
+    // Spawn in the right-side staging strip of the canvas
     const canvasW = Math.max(400, window.innerWidth - 226 - 286);
-    const canvasH = Math.max(400, window.innerHeight - 56);
-    const x = canvasW / 2 + (Math.random() - 0.5) * 200;
-    const y = canvasH / 2 + (Math.random() - 0.5) * 150;
+    const x = canvasW - 80 + (Math.random() - 0.5) * 20; // right edge strip
+    const y = 80 + Math.random() * (window.innerHeight - 300); // random vertical
     addBoardPiece({ label: preset.name.slice(0, 1), role: preset.role, emoji: preset.emoji, color: preset.color, x, y });
   };
 

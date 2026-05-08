@@ -303,6 +303,7 @@ export const useGameStore = create<GameStore>()(
 
       clearTable: () =>
         set((state) => {
+          // Return cards to their source decks
           const newDecks = { ...state.decks };
           for (const fCard of state.freeCards) {
             const deckId = fCard.sourceDeckId;
@@ -311,11 +312,12 @@ export const useGameStore = create<GameStore>()(
               newDecks[deckId] = { ...newDecks[deckId], cards: [...newDecks[deckId].cards, state.cards[cardId]] };
             }
           }
-          return { freeCards: [], decks: newDecks };
+          // Reset board pieces to initial positions
+          return { freeCards: [], decks: newDecks, boardPieces: initialBoardPieces };
         }),
     }),
     {
-      name: 'board-game-storage-v5',
+      name: 'board-game-storage-v6',
       partialize: (state) => ({
         cards: state.cards,
         decks: state.decks,

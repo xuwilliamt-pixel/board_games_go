@@ -50,7 +50,7 @@ export const FreePiece: React.FC<{ piece: BoardPiece }> = ({ piece }) => {
 
   return (
     <div
-      style={{ position: 'absolute', left: piece.x, top: piece.y, zIndex: piece.zIndex, userSelect: 'none' }}
+      style={{ position: 'absolute', left: piece.x, top: piece.y, zIndex: piece.zIndex + 5000, userSelect: 'none' }}
       onMouseDown={handleMouseDown}
       onContextMenu={handleRightClick}
     >

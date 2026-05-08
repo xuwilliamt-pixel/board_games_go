@@ -1,18 +1,25 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 interface BoardGridProps {
   theme?: 'day' | 'night';
 }
 
-const CELL_SIZE = 64;
-const GAP = 6;
-const BOARD_TOTAL = CELL_SIZE * 5 + GAP * 4;
+const GAP = 8;
 
 export const BoardGrid: React.FC<BoardGridProps> = ({ theme = 'night' }) => {
   const isDark = theme === 'night';
 
-  const boardBg = isDark ? 'rgba(15, 10, 35, 0.7)' : 'rgba(210, 195, 170, 0.75)';
-  const borderColor = isDark ? 'rgba(139,92,246,0.25)' : 'rgba(100,80,50,0.25)';
+  // Compute cell size dynamically so board fits the available canvas
+  const { cellSize, boardTotal } = useMemo(() => {
+    const availableW = window.innerWidth - 226 - 286 - 64; // left panel + right panel + padding
+    const availableH = window.innerHeight - 56 - 90;       // navbar + title/legend/padding
+    const maxDim = Math.min(availableW, availableH);
+    const cs = Math.max(72, Math.min(116, Math.floor((maxDim - GAP * 4) / 5)));
+    return { cellSize: cs, boardTotal: cs * 5 + GAP * 4 };
+  }, []);
+
+  const boardBg = isDark ? 'rgba(15, 10, 35, 0.72)' : 'rgba(210, 195, 170, 0.78)';
+  const borderColor = isDark ? 'rgba(139,92,246,0.28)' : 'rgba(100,80,50,0.28)';
   const cellBg = isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.035)';
 
   return (
@@ -23,25 +30,25 @@ export const BoardGrid: React.FC<BoardGridProps> = ({ theme = 'night' }) => {
         border: `2px solid ${borderColor}`,
         backdropFilter: 'blur(10px)',
         boxShadow: isDark
-          ? '0 0 30px rgba(139,92,246,0.1), 0 20px 50px rgba(0,0,0,0.45)'
+          ? '0 0 30px rgba(139,92,246,0.12), 0 20px 50px rgba(0,0,0,0.5)'
           : '0 20px 50px rgba(0,0,0,0.15)',
       }}
     >
       {/* Title */}
       <div
         className="text-center text-[10px] font-black uppercase tracking-widest mb-3"
-        style={{ color: isDark ? 'rgba(139,92,246,0.6)' : 'rgba(100,70,30,0.5)' }}
+        style={{ color: isDark ? 'rgba(139,92,246,0.65)' : 'rgba(100,70,30,0.55)' }}
       >
         ⚔️ 5 × 5 戰鬥棋盤
       </div>
 
-      {/* Grid cells — purely visual */}
+      {/* Grid — pure visual reference, no state management */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(5, ${CELL_SIZE}px)`,
+          gridTemplateColumns: `repeat(5, ${cellSize}px)`,
           gap: `${GAP}px`,
-          width: BOARD_TOTAL,
+          width: boardTotal,
         }}
       >
         {Array.from({ length: 25 }, (_, i) => {
@@ -50,10 +57,10 @@ export const BoardGrid: React.FC<BoardGridProps> = ({ theme = 'night' }) => {
           return (
             <div
               key={i}
-              className="relative rounded-xl"
+              className="relative rounded-xl transition-colors"
               style={{
-                width: CELL_SIZE,
-                height: CELL_SIZE,
+                width: cellSize,
+                height: cellSize,
                 background: cellBg,
                 border: `1px solid ${borderColor}`,
               }}
@@ -73,9 +80,9 @@ export const BoardGrid: React.FC<BoardGridProps> = ({ theme = 'night' }) => {
       <div className="mt-3 text-center">
         <span
           className="text-[9px] font-semibold"
-          style={{ color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.25)' }}
+          style={{ color: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.28)' }}
         >
-          棋子與卡牌可自由拖放到棋盤上
+          棋子與卡牌可自由拖放到棋盤格上
         </span>
       </div>
     </div>
