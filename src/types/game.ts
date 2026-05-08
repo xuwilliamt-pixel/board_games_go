@@ -23,8 +23,8 @@ export interface Deck {
 /** A card placed on the free canvas */
 export interface FreeCard extends Card {
   instanceId: string;
-  sourceDeckId?: string; // which deck this card came from, for returning on clear
-  sourceCardId?: string; // original template card id
+  sourceDeckId?: string;
+  sourceCardId?: string;
   x: number;
   y: number;
   rotation: number;
@@ -49,6 +49,32 @@ export interface DiceResult {
   timestamp: number;
 }
 
+// ── Character System ─────────────────────────────────────────────
+
+export type CharacterRole = 'warrior' | 'mage' | 'archer' | 'healer' | 'boss' | 'monster';
+
+export interface Character {
+  id: string;
+  name: string;
+  role: CharacterRole;
+  emoji: string;
+  color: string;          // accent color (hex)
+  hpBars: boolean[];      // each entry = one HP bar; true=filled, false=empty
+  attack: number;
+  defense: number;
+}
+
+/** A token/piece placed on the 5x5 board */
+export interface BoardPiece {
+  id: string;
+  label: string;
+  role: CharacterRole;
+  emoji: string;
+  color: string;
+  row: number;  // 0-4
+  col: number;  // 0-4
+}
+
 export interface GameState {
   decks: Record<string, Deck>;
   cards: Record<string, Card>;
@@ -56,4 +82,6 @@ export interface GameState {
   freeDice: FreeDice[];
   diceHistory: DiceResult[];
   topZIndex: number;
+  characters: Character[];
+  boardPieces: BoardPiece[];
 }

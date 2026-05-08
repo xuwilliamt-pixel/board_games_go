@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { FreeCard } from '../FreeCard/FreeCard';
 import { FreeDice } from '../FreeDice/FreeDice';
+import { BoardGrid } from '../BoardGrid/BoardGrid';
 
 interface FreeCanvasProps {
   theme: 'day' | 'night';
@@ -54,57 +55,53 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
       onDoubleClick={handleDoubleClick}
     >
       {/* Felt texture overlay */}
-      {theme === 'day' ? (
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'0.7\' fill=\'rgba(80,60,40,0.04)\'/%3E%3C/svg%3E")',
-          backgroundSize: '4px 4px',
-        }} />
-      ) : (
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'0.7\' fill=\'rgba(255,255,255,0.02)\'/%3E%3C/svg%3E")',
-          backgroundSize: '4px 4px',
-        }} />
-      )}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: theme === 'day'
+          ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'0.7\' fill=\'rgba(80,60,40,0.04)\'/%3E%3C/svg%3E")'
+          : 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'4\' height=\'4\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'0.7\' fill=\'rgba(255,255,255,0.02)\'/%3E%3C/svg%3E")',
+        backgroundSize: '4px 4px',
+      }} />
 
-      {/* Render dice */}
+      {/* ── 5x5 Board — centered in canvas ── */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="pointer-events-auto">
+          <BoardGrid theme={theme} />
+        </div>
+      </div>
+
+      {/* ── Free Dice ── */}
       {freeDice.map((d) => (
         <FreeDice key={d.id} dice={d} />
       ))}
 
-      {/* Render cards */}
+      {/* ── Free Cards ── */}
       {freeCards.map((c) => (
         <FreeCard key={c.instanceId} card={c} theme={theme} />
       ))}
 
       {/* Empty state hint */}
       {freeCards.length === 0 && freeDice.length <= 1 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center">
-            <div className="text-6xl mb-6">🃏</div>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div
+            className="px-6 py-3 rounded-2xl shadow-lg"
+            style={{
+              background: theme === 'day' ? 'rgba(255,255,255,0.75)' : 'rgba(30,20,60,0.85)',
+              border: `1px solid ${theme === 'day' ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}`,
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <p className="font-black text-sm mb-1.5" style={{ color: theme === 'day' ? '#1c1208' : '#e2d9f3' }}>
+              🎴 雙擊桌面抽牌 · 從左側牌組點擊抽卡
+            </p>
             <div
-              className="px-8 py-5 rounded-2xl shadow-lg"
-              style={{
-                background: theme === 'day' ? 'rgba(255,255,255,0.75)' : 'rgba(30,20,60,0.85)',
-                border: `1px solid ${theme === 'day' ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}`,
-                backdropFilter: 'blur(8px)',
-              }}
+              className="flex items-center justify-center gap-4 text-xs font-semibold"
+              style={{ color: theme === 'day' ? '#4a3a28' : '#a89cc8' }}
             >
-              <p
-                className="font-black text-base mb-3"
-                style={{ color: theme === 'day' ? '#1c1208' : '#e2d9f3' }}
-              >
-                🎴 雙擊桌面抽牌 · 從左側牌組點擊抽卡
-              </p>
-              <div
-                className="flex items-center justify-center gap-4 text-sm font-semibold"
-                style={{ color: theme === 'day' ? '#4a3a28' : '#a89cc8' }}
-              >
-                <span>👆 點擊卡牌翻面</span>
-                <span style={{ opacity: 0.4 }}>|</span>
-                <span>🖱️ 右鍵編輯卡牌</span>
-                <span style={{ opacity: 0.4 }}>|</span>
-                <span>🎲 點擊骰子搖骰</span>
-              </div>
+              <span>👆 點擊卡牌翻面</span>
+              <span style={{ opacity: 0.4 }}>|</span>
+              <span>🖱️ 右鍵編輯卡牌</span>
+              <span style={{ opacity: 0.4 }}>|</span>
+              <span>🎲 點擊骰子搖骰</span>
             </div>
           </div>
         </div>

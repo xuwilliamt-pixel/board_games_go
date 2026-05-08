@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FreeCanvas } from './components/FreeCanvas/FreeCanvas';
 import { DeckPanel } from './components/DeckPanel/DeckPanel';
 import { DeckBuilder } from './components/DeckBuilder/DeckBuilder';
+import { CharacterPanel } from './components/CharacterPanel/CharacterPanel';
 import { useGameStore } from './store/gameStore';
 
 function App() {
@@ -106,11 +107,7 @@ function App() {
                 key={view}
                 onClick={() => setCurrentView(view)}
                 className="px-4 py-1 rounded-full text-xs font-bold transition-all"
-                style={currentView === view ? {
-                  background: '#7c3aed', color: 'white',
-                } : {
-                  color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)',
-                }}
+                style={currentView === view ? { background: '#7c3aed', color: 'white' } : { color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)' }}
               >
                 {view === 'play' ? '遊玩' : '編輯器'}
               </button>
@@ -125,8 +122,14 @@ function App() {
           <DeckBuilder theme={theme} />
         ) : (
           <>
+            {/* Left: Deck Panel */}
             <DeckPanel theme={theme} />
-            <div className="absolute inset-0" style={{ paddingLeft: 226 }}>
+
+            {/* Right: Character Panel */}
+            <CharacterPanel theme={theme} />
+
+            {/* Center: Free Canvas (with board inside) */}
+            <div className="absolute inset-0" style={{ paddingLeft: 226, paddingRight: 286 }}>
               <FreeCanvas theme={theme} />
             </div>
           </>

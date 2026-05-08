@@ -1,41 +1,29 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { GameState, Card, Deck, FreeCard, FreeDice, DiceResult } from '../types/game';
+import type { GameState, Card, Deck, FreeCard, FreeDice, DiceResult, Character, BoardPiece } from '../types/game';
 
 const DEFAULT_BACK_IMAGE = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
+const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-interface GameStore extends GameState {
-  // Canvas actions
-  placeCardOnCanvas: (templateId: string, x: number, y: number) => void;
-  placeCardFromDeck: (deckId: string, x: number, y: number) => void;
-  moveCard: (instanceId: string, x: number, y: number) => void;
-  flipCard: (instanceId: string) => void;
-  rotateCard: (instanceId: string, delta: number) => void;
-  removeCard: (instanceId: string) => void;
-  bringToFront: (instanceId: string) => void;
-  updateFreeCard: (instanceId: string, fields: Partial<Card & { rotation?: number }>) => void;
+// ── Initial Characters ─────────────────────────────────────────
+const initialCharacters: Character[] = [
+  { id: 'hero-1', name: '戰士', role: 'warrior', emoji: '⚔️', color: '#ef4444', hpBars: [true, true, true], attack: 4, defense: 3 },
+  { id: 'hero-2', name: '法師', role: 'mage',    emoji: '🧙', color: '#8b5cf6', hpBars: [true, true, true], attack: 6, defense: 1 },
+  { id: 'hero-3', name: '弓手', role: 'archer',  emoji: '🏹', color: '#10b981', hpBars: [true, true, true], attack: 4, defense: 2 },
+  { id: 'hero-4', name: '治癒師', role: 'healer', emoji: '💊', color: '#06b6d4', hpBars: [true, true, true], attack: 2, defense: 2 },
+  { id: 'boss-1', name: '魔王', role: 'boss',    emoji: '👾', color: '#f97316', hpBars: [true, true, true, true, true], attack: 8, defense: 5 },
+];
 
-  // Dice actions
-  addDice: (x: number, y: number, sides?: FreeDice['sides']) => void;
-  moveDice: (diceId: string, x: number, y: number) => void;
-  rollDice: (diceId: string) => void;
-  changeDiceSides: (diceId: string, sides: FreeDice['sides']) => void;
-  removeDice: (diceId: string) => void;
-  bringDiceToFront: (diceId: string) => void;
+// ── Initial Board Pieces ───────────────────────────────────────
+const initialBoardPieces: BoardPiece[] = [
+  { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#ef4444', row: 4, col: 1 },
+  { id: 'piece-2', label: '法', role: 'mage',    emoji: '🧙', color: '#8b5cf6', row: 4, col: 2 },
+  { id: 'piece-3', label: '弓', role: 'archer',  emoji: '🏹', color: '#10b981', row: 4, col: 3 },
+  { id: 'piece-4', label: '癒', role: 'healer',  emoji: '💊', color: '#06b6d4', row: 3, col: 2 },
+  { id: 'piece-5', label: '魔', role: 'boss',    emoji: '👾', color: '#f97316', row: 0, col: 2 },
+];
 
-  // Deck builder actions
-  addCard: (card: Omit<Card, 'id'>) => void;
-  updateCard: (id: string, card: Partial<Card>) => void;
-  deleteCard: (id: string) => void;
-  createDeck: () => void;
-  updateDeck: (deckId: string, cardIds: string[]) => void;
-  updateDeckInfo: (deckId: string, info: { name?: string; backImage?: string }) => void;
-  deleteDeck: (deckId: string) => void;
-
-  // Utility
-  clearTable: () => void;
-}
-
+// ── Mock Cards ─────────────────────────────────────────────────
 const mockCards: Record<string, Card> = {
   'card-1': { id: 'card-1', name: '火球術', description: '造成 3 點傷害', isFlipped: false, type: 'spell', value: 3 },
   'card-2': { id: 'card-2', name: '哥布林', description: '一個弱小的生物', isFlipped: false, type: 'creature', attack: 1, health: 2 },
@@ -57,12 +45,7 @@ const defaultDeckCards: Card[] = [
 ];
 
 const initialDecks: Record<string, Deck> = {
-  'deck-1': {
-    id: 'deck-1',
-    name: 'Starter Deck',
-    cards: defaultDeckCards,
-    backImage: DEFAULT_BACK_IMAGE,
-  },
+  'deck-1': { id: 'deck-1', name: 'Starter Deck', cards: defaultDeckCards, backImage: DEFAULT_BACK_IMAGE },
 };
 
 const initialState: GameState = {
@@ -74,183 +57,188 @@ const initialState: GameState = {
   ],
   diceHistory: [],
   topZIndex: 10,
+  characters: initialCharacters,
+  boardPieces: initialBoardPieces,
 };
 
-const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+// ── Store Interface ────────────────────────────────────────────
+interface GameStore extends GameState {
+  // Canvas
+  placeCardOnCanvas: (templateId: string, x: number, y: number) => void;
+  placeCardFromDeck: (deckId: string, x: number, y: number) => void;
+  moveCard: (instanceId: string, x: number, y: number) => void;
+  flipCard: (instanceId: string) => void;
+  rotateCard: (instanceId: string, delta: number) => void;
+  removeCard: (instanceId: string) => void;
+  bringToFront: (instanceId: string) => void;
+  updateFreeCard: (instanceId: string, fields: Partial<Card & { rotation?: number }>) => void;
+
+  // Dice
+  addDice: (x: number, y: number, sides?: FreeDice['sides']) => void;
+  moveDice: (diceId: string, x: number, y: number) => void;
+  rollDice: (diceId: string) => void;
+  changeDiceSides: (diceId: string, sides: FreeDice['sides']) => void;
+  removeDice: (diceId: string) => void;
+  bringDiceToFront: (diceId: string) => void;
+
+  // Characters
+  toggleHPBar: (characterId: string, index: number) => void;
+  updateCharacterStat: (characterId: string, stat: 'attack' | 'defense', delta: number) => void;
+  resetCharacterHP: (characterId: string) => void;
+
+  // Board Pieces
+  addBoardPiece: (piece: Omit<BoardPiece, 'id'>) => void;
+  moveBoardPiece: (pieceId: string, row: number, col: number) => void;
+  removeBoardPiece: (pieceId: string) => void;
+  updateBoardPieceLabel: (pieceId: string, label: string) => void;
+
+  // Deck Builder
+  addCard: (card: Omit<Card, 'id'>) => void;
+  updateCard: (id: string, card: Partial<Card>) => void;
+  deleteCard: (id: string) => void;
+  createDeck: () => void;
+  updateDeck: (deckId: string, cardIds: string[]) => void;
+  updateDeckInfo: (deckId: string, info: { name?: string; backImage?: string }) => void;
+  deleteDeck: (deckId: string) => void;
+  clearTable: () => void;
+}
 
 export const useGameStore = create<GameStore>()(
   persist(
     (set) => ({
       ...initialState,
 
-      // ── Canvas Actions ──────────────────────────────────────────
-
+      // ── Canvas ──────────────────────────────────────────────────
       placeCardOnCanvas: (templateId, x, y) =>
         set((state) => {
           const template = state.cards[templateId];
           if (!template) return state;
           const newZ = state.topZIndex + 1;
-          const newCard: FreeCard = {
-            ...template,
-            instanceId: `inst_${genId()}`,
-            x,
-            y,
-            rotation: 0,
-            zIndex: newZ,
-          };
-          return {
-            freeCards: [...state.freeCards, newCard],
-            topZIndex: newZ,
-          };
+          const newCard: FreeCard = { ...template, instanceId: `inst_${genId()}`, x, y, rotation: 0, zIndex: newZ };
+          return { freeCards: [...state.freeCards, newCard], topZIndex: newZ };
         }),
 
       placeCardFromDeck: (deckId, x, y) =>
         set((state) => {
           const deck = state.decks[deckId];
           if (!deck || deck.cards.length === 0) return state;
-          // Pick random card from deck
           const idx = Math.floor(Math.random() * deck.cards.length);
           const template = deck.cards[idx];
           const newDeckCards = deck.cards.filter((_, i) => i !== idx);
           const newZ = state.topZIndex + 1;
           const newCard: FreeCard = {
-            ...template,
-            instanceId: `inst_${genId()}`,
-            sourceDeckId: deckId,
-            sourceCardId: template.id,
-            x,
-            y,
-            rotation: 0,
-            isFlipped: true, // drawn face-down (back showing)
-            zIndex: newZ,
+            ...template, instanceId: `inst_${genId()}`,
+            sourceDeckId: deckId, sourceCardId: template.id,
+            x, y, rotation: 0, isFlipped: true, zIndex: newZ,
           };
-          return {
-            decks: { ...state.decks, [deckId]: { ...deck, cards: newDeckCards } },
-            freeCards: [...state.freeCards, newCard],
-            topZIndex: newZ,
-          };
+          return { decks: { ...state.decks, [deckId]: { ...deck, cards: newDeckCards } }, freeCards: [...state.freeCards, newCard], topZIndex: newZ };
         }),
 
       moveCard: (instanceId, x, y) =>
-        set((state) => ({
-          freeCards: state.freeCards.map((c) =>
-            c.instanceId === instanceId ? { ...c, x, y } : c
-          ),
-        })),
+        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, x, y } : c) })),
 
       flipCard: (instanceId) =>
-        set((state) => ({
-          freeCards: state.freeCards.map((c) =>
-            c.instanceId === instanceId ? { ...c, isFlipped: !c.isFlipped } : c
-          ),
-        })),
+        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, isFlipped: !c.isFlipped } : c) })),
 
       rotateCard: (instanceId, delta) =>
-        set((state) => ({
-          freeCards: state.freeCards.map((c) =>
-            c.instanceId === instanceId ? { ...c, rotation: (c.rotation + delta) % 360 } : c
-          ),
-        })),
+        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, rotation: (c.rotation + delta) % 360 } : c) })),
 
       removeCard: (instanceId) =>
-        set((state) => ({
-          freeCards: state.freeCards.filter((c) => c.instanceId !== instanceId),
-        })),
+        set((state) => ({ freeCards: state.freeCards.filter((c) => c.instanceId !== instanceId) })),
 
       bringToFront: (instanceId) =>
         set((state) => {
           const newZ = state.topZIndex + 1;
-          return {
-            freeCards: state.freeCards.map((c) =>
-              c.instanceId === instanceId ? { ...c, zIndex: newZ } : c
-            ),
-            topZIndex: newZ,
-          };
+          return { freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, zIndex: newZ } : c), topZIndex: newZ };
         }),
 
       updateFreeCard: (instanceId, fields) =>
-        set((state) => ({
-          freeCards: state.freeCards.map((c) =>
-            c.instanceId === instanceId ? { ...c, ...fields } : c
-          ),
-        })),
+        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, ...fields } : c) })),
 
-      // ── Dice Actions ─────────────────────────────────────────────
-
+      // ── Dice ────────────────────────────────────────────────────
       addDice: (x, y, sides = 12) =>
         set((state) => {
           const newZ = state.topZIndex + 1;
-          const newDice: FreeDice = {
-            id: `dice_${genId()}`,
-            x,
-            y,
-            sides,
-            currentValue: 1,
-            isRolling: false,
-            zIndex: newZ,
-          };
-          return {
-            freeDice: [...state.freeDice, newDice],
-            topZIndex: newZ,
-          };
+          const newDice: FreeDice = { id: `dice_${genId()}`, x, y, sides, currentValue: 1, isRolling: false, zIndex: newZ };
+          return { freeDice: [...state.freeDice, newDice], topZIndex: newZ };
         }),
 
       moveDice: (diceId, x, y) =>
-        set((state) => ({
-          freeDice: state.freeDice.map((d) =>
-            d.id === diceId ? { ...d, x, y } : d
-          ),
-        })),
+        set((state) => ({ freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, x, y } : d) })),
 
       rollDice: (diceId) =>
         set((state) => {
           const dice = state.freeDice.find((d) => d.id === diceId);
           if (!dice) return state;
           const value = Math.floor(Math.random() * dice.sides) + 1;
-          const newResult: DiceResult = {
-            id: genId(),
-            value,
-            max: dice.sides,
-            timestamp: Date.now(),
-          };
+          const newResult: DiceResult = { id: genId(), value, max: dice.sides, timestamp: Date.now() };
           return {
-            freeDice: state.freeDice.map((d) =>
-              d.id === diceId ? { ...d, currentValue: value, isRolling: false } : d
-            ),
+            freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, currentValue: value } : d),
             diceHistory: [newResult, ...state.diceHistory].slice(0, 20),
           };
         }),
 
       changeDiceSides: (diceId, sides) =>
-        set((state) => ({
-          freeDice: state.freeDice.map((d) =>
-            d.id === diceId ? { ...d, sides, currentValue: 1 } : d
-          ),
-        })),
+        set((state) => ({ freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, sides, currentValue: 1 } : d) })),
 
       removeDice: (diceId) =>
-        set((state) => ({
-          freeDice: state.freeDice.filter((d) => d.id !== diceId),
-        })),
+        set((state) => ({ freeDice: state.freeDice.filter((d) => d.id !== diceId) })),
 
       bringDiceToFront: (diceId) =>
         set((state) => {
           const newZ = state.topZIndex + 1;
-          return {
-            freeDice: state.freeDice.map((d) =>
-              d.id === diceId ? { ...d, zIndex: newZ } : d
-            ),
-            topZIndex: newZ,
-          };
+          return { freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, zIndex: newZ } : d), topZIndex: newZ };
         }),
 
-      // ── Deck Builder Actions ──────────────────────────────────────
+      // ── Characters ──────────────────────────────────────────────
+      toggleHPBar: (characterId, index) =>
+        set((state) => ({
+          characters: state.characters.map((c) => {
+            if (c.id !== characterId) return c;
+            const newBars = [...c.hpBars];
+            newBars[index] = !newBars[index];
+            return { ...c, hpBars: newBars };
+          }),
+        })),
 
+      updateCharacterStat: (characterId, stat, delta) =>
+        set((state) => ({
+          characters: state.characters.map((c) => {
+            if (c.id !== characterId) return c;
+            return { ...c, [stat]: Math.max(0, c[stat] + delta) };
+          }),
+        })),
+
+      resetCharacterHP: (characterId) =>
+        set((state) => ({
+          characters: state.characters.map((c) => {
+            if (c.id !== characterId) return c;
+            return { ...c, hpBars: c.hpBars.map(() => true) };
+          }),
+        })),
+
+      // ── Board Pieces ────────────────────────────────────────────
+      addBoardPiece: (piece) =>
+        set((state) => ({
+          boardPieces: [...state.boardPieces, { ...piece, id: `piece_${genId()}` }],
+        })),
+
+      moveBoardPiece: (pieceId, row, col) =>
+        set((state) => ({
+          boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, row, col } : p),
+        })),
+
+      removeBoardPiece: (pieceId) =>
+        set((state) => ({ boardPieces: state.boardPieces.filter((p) => p.id !== pieceId) })),
+
+      updateBoardPieceLabel: (pieceId, label) =>
+        set((state) => ({ boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, label } : p) })),
+
+      // ── Deck Builder ────────────────────────────────────────────
       addCard: (cardData) =>
         set((state) => {
           const newId = `card-${genId()}`;
-          const newCard: Card = { ...cardData, id: newId };
-          return { cards: { ...state.cards, [newId]: newCard } };
+          return { cards: { ...state.cards, [newId]: { ...cardData, id: newId } } };
         }),
 
       updateCard: (id, cardData) =>
@@ -259,16 +247,9 @@ export const useGameStore = create<GameStore>()(
           const updatedCard = { ...state.cards[id], ...cardData };
           const newDecks = { ...state.decks };
           for (const deckId in newDecks) {
-            newDecks[deckId] = {
-              ...newDecks[deckId],
-              cards: newDecks[deckId].cards.map((c) => (c.id === id ? updatedCard : c)),
-            };
+            newDecks[deckId] = { ...newDecks[deckId], cards: newDecks[deckId].cards.map((c) => c.id === id ? updatedCard : c) };
           }
-          // Also update live instances on canvas
-          const newFreeCards = state.freeCards.map((c) =>
-            c.id === id ? { ...c, ...cardData } : c
-          );
-          return { cards: { ...state.cards, [id]: updatedCard }, decks: newDecks, freeCards: newFreeCards };
+          return { cards: { ...state.cards, [id]: updatedCard }, decks: newDecks, freeCards: state.freeCards.map((c) => c.id === id ? { ...c, ...cardData } : c) };
         }),
 
       deleteCard: (id) =>
@@ -277,10 +258,7 @@ export const useGameStore = create<GameStore>()(
           delete newCards[id];
           const newDecks = { ...state.decks };
           for (const deckId in newDecks) {
-            newDecks[deckId] = {
-              ...newDecks[deckId],
-              cards: newDecks[deckId].cards.filter((c) => c.id !== id),
-            };
+            newDecks[deckId] = { ...newDecks[deckId], cards: newDecks[deckId].cards.filter((c) => c.id !== id) };
           }
           return { cards: newCards, decks: newDecks };
         }),
@@ -288,36 +266,19 @@ export const useGameStore = create<GameStore>()(
       createDeck: () =>
         set((state) => {
           const newId = `deck-${genId()}`;
-          const newDeck: Deck = {
-            id: newId,
-            name: 'New Deck',
-            cards: [],
-            backImage: DEFAULT_BACK_IMAGE,
-          };
-          return { decks: { ...state.decks, [newId]: newDeck } };
+          return { decks: { ...state.decks, [newId]: { id: newId, name: 'New Deck', cards: [], backImage: DEFAULT_BACK_IMAGE } } };
         }),
 
       updateDeck: (deckId, cardIds) =>
         set((state) => {
           if (!state.decks[deckId]) return state;
-          const deckCards = cardIds.map((id) => state.cards[id]).filter(Boolean);
-          return {
-            decks: {
-              ...state.decks,
-              [deckId]: { ...state.decks[deckId], cards: deckCards },
-            },
-          };
+          return { decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cards: cardIds.map((id) => state.cards[id]).filter(Boolean) } } };
         }),
 
       updateDeckInfo: (deckId, info) =>
         set((state) => {
           if (!state.decks[deckId]) return state;
-          return {
-            decks: {
-              ...state.decks,
-              [deckId]: { ...state.decks[deckId], ...info },
-            },
-          };
+          return { decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...info } } };
         }),
 
       deleteDeck: (deckId) =>
@@ -329,30 +290,27 @@ export const useGameStore = create<GameStore>()(
 
       clearTable: () =>
         set((state) => {
-          // Return each free card back to its source deck
           const newDecks = { ...state.decks };
           for (const fCard of state.freeCards) {
             const deckId = fCard.sourceDeckId;
             const cardId = fCard.sourceCardId;
             if (deckId && cardId && newDecks[deckId] && state.cards[cardId]) {
-              newDecks[deckId] = {
-                ...newDecks[deckId],
-                cards: [...newDecks[deckId].cards, state.cards[cardId]],
-              };
+              newDecks[deckId] = { ...newDecks[deckId], cards: [...newDecks[deckId].cards, state.cards[cardId]] };
             }
           }
           return { freeCards: [], decks: newDecks };
         }),
     }),
     {
-      name: 'board-game-storage-v3',
+      name: 'board-game-storage-v4',
       partialize: (state) => ({
         cards: state.cards,
         decks: state.decks,
         freeCards: state.freeCards,
-        // freeDice intentionally NOT persisted — always loads from initialState
         diceHistory: state.diceHistory,
         topZIndex: state.topZIndex,
+        characters: state.characters,
+        boardPieces: state.boardPieces,
       }),
     }
   )
