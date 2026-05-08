@@ -51,7 +51,7 @@ export interface DiceResult {
 
 // ── Character System ─────────────────────────────────────────────
 
-export type CharacterRole = 'warrior' | 'mage' | 'archer' | 'healer' | 'boss' | 'monster';
+export type CharacterRole = 'warrior' | 'mage' | 'archer' | 'healer' | 'boss' | 'monster' | 'Slime' | 'bigFour';
 
 export interface Character {
   id: string;

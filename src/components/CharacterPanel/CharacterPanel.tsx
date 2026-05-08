@@ -9,11 +9,12 @@ interface CharacterPanelProps {
 
 const ROLE_PRESETS: { role: CharacterRole; name: string; emoji: string; color: string }[] = [
   { role: 'warrior', name: '勇者', emoji: '⚔️', color: '#ef4444' },
-  { role: 'mage',    name: '法師', emoji: '🧙', color: '#8b5cf6' },
-  { role: 'archer',  name: '弓手', emoji: '🏹', color: '#10b981' },
-  { role: 'healer',  name: '治癒師', emoji: '💊', color: '#06b6d4' },
+  { role: 'mage', name: '法師', emoji: '🧙', color: '#8b5cf6' },
+  { role: 'archer', name: '弓手', emoji: '🏹', color: '#10b981' },
+  { role: 'healer', name: '治癒師', emoji: '💊', color: '#06b6d4' },
   { role: 'monster', name: '怪物', emoji: '👹', color: '#f59e0b' },
-  { role: 'boss',    name: '魔王', emoji: '👾', color: '#f97316' },
+  { role: 'Slime', name: '史萊姆', emoji: '🫠', color: '#f97316' },
+  { role: 'boss', name: '魔王', emoji: '👾', color: '#f97316' },
 ];
 
 interface HPBarProps {
@@ -153,9 +154,9 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' 
     const GAP = 8;
     const canvasW = Math.max(400, window.innerWidth - 226 - 286);
     const canvasH = Math.max(400, window.innerHeight - 56);
-    const maxDim  = Math.min(canvasW - 64, canvasH - 60);
-    const cell    = Math.max(74, Math.min(100, Math.floor((maxDim - GAP * 4) / 5)));
-    const boardW  = cell * 5 + GAP * 4 + 32;
+    const maxDim = Math.min(canvasW - 64, canvasH - 60);
+    const cell = Math.max(74, Math.min(100, Math.floor((maxDim - GAP * 4) / 5)));
+    const boardW = cell * 5 + GAP * 4 + 32;
     const boardLeft = (canvasW - boardW) / 2;
     const pieceZoneL = boardLeft + boardW + 10;
     const x = pieceZoneL + 16 + Math.random() * 20;
@@ -204,7 +205,7 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' 
               <div className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)' }}>
                 ─── 勇者陣營 ───
               </div>
-              {characters.filter((c) => c.role !== 'boss' && c.role !== 'monster').map((c) => (
+              {characters.filter((c) => c.role !== 'boss' && c.role !== 'monster' && c.role !== 'bigFour').map((c) => (
                 <CharacterCard key={c.id} character={c} theme={theme} />
               ))}
 
@@ -212,7 +213,7 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' 
               <div className="text-[9px] font-black uppercase tracking-widest mt-2 mb-1" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)' }}>
                 ─── 魔王陣營 ───
               </div>
-              {characters.filter((c) => c.role === 'boss' || c.role === 'monster').map((c) => (
+              {characters.filter((c) => c.role === 'boss' || c.role === 'monster' || c.role === 'bigFour').map((c) => (
                 <CharacterCard key={c.id} character={c} theme={theme} />
               ))}
             </>
