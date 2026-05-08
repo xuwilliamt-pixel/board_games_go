@@ -123,8 +123,8 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night' }>
         onContextMenu={handleContextMenu}
       >
         <motion.div
-          className="relative w-[110px] h-[154px] rounded-xl cursor-grab active:cursor-grabbing group"
-          whileHover={{ scale: 1.04 }}
+          className="relative w-[74px] h-[90px] rounded-lg cursor-grab active:cursor-grabbing group"
+          whileHover={{ scale: 1.08 }}
           style={{ perspective: '800px' }}
         >
           <motion.div
@@ -135,49 +135,48 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night' }>
           >
             {/* Front */}
             <div
-              className={`absolute inset-0 rounded-xl border-2 transition-colors overflow-hidden shadow-xl flex flex-col ${
+              className={`absolute inset-0 rounded-lg border-2 overflow-hidden shadow-xl flex flex-col ${
                 theme === 'day'
-                  ? 'border-stone-300/60 group-hover:border-amber-500/60 bg-[#faf7f0]'
-                  : 'border-white/20 group-hover:border-violet-400/60 bg-[#1a1a2e]'
+                  ? 'border-amber-400 bg-amber-50'
+                  : 'border-violet-400/80 bg-[#1e1535]'
               }`}
               style={{ backfaceVisibility: 'hidden' }}
             >
-              <div className="absolute inset-0 p-2 flex flex-col">
-                <div className="flex justify-between items-start mb-1">
-                  <span className={`text-[11px] font-black leading-tight truncate ${theme === 'day' ? 'text-stone-800' : 'text-white'}`}>{card.name}</span>
-                  <span className={`text-[8px] shrink-0 ml-1 ${theme === 'day' ? 'text-stone-400' : 'text-white/30'}`}>{card.type}</span>
+              <div className="absolute inset-0 p-1 flex flex-col">
+                <div className="flex justify-between items-start">
+                  <span className={`text-[8px] font-black leading-tight truncate ${theme === 'day' ? 'text-stone-900' : 'text-white'}`}>{card.name}</span>
+                  <span className={`text-[6px] shrink-0 ml-0.5 px-0.5 rounded font-bold ${theme === 'day' ? 'bg-amber-200 text-amber-800' : 'bg-violet-900/60 text-violet-300'}`}>{card.type[0].toUpperCase()}</span>
                 </div>
-                <div className={`flex-1 text-[9px] leading-snug overflow-hidden line-clamp-5 ${theme === 'day' ? 'text-stone-600' : 'text-white/60'}`}>
+                <div className={`flex-1 text-[6px] leading-tight overflow-hidden mt-0.5 ${theme === 'day' ? 'text-stone-700' : 'text-gray-300'}`}>
                   {card.description}
                 </div>
                 {card.type === 'creature' ? (
-                  <div className={`flex justify-between mt-auto pt-1 border-t ${theme === 'day' ? 'border-stone-200' : 'border-white/10'}`}>
+                  <div className={`flex justify-between pt-0.5 border-t ${theme === 'day' ? 'border-amber-200' : 'border-violet-800/60'}`}>
                     <div className="text-center">
-                      <div className="text-[7px] text-red-500/70 uppercase">ATK</div>
-                      <div className="text-sm font-black text-red-500">{card.attack}</div>
+                      <div className="text-[5px] text-red-500/80 uppercase font-bold">ATK</div>
+                      <div className="text-[10px] font-black text-red-500">{card.attack}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-[7px] text-green-600/70 uppercase">HP</div>
-                      <div className="text-sm font-black text-green-600">{card.health}</div>
+                      <div className="text-[5px] text-green-600/80 uppercase font-bold">HP</div>
+                      <div className="text-[10px] font-black text-green-600">{card.health}</div>
                     </div>
                   </div>
                 ) : (
-                  <div className={`mt-auto pt-1 text-center border-t ${theme === 'day' ? 'border-stone-200' : 'border-white/10'}`}>
-                    <div className="text-[7px] text-violet-500/70 uppercase">Value</div>
-                    <div className="text-sm font-black text-violet-600">{card.value}</div>
+                  <div className={`text-center pt-0.5 border-t ${theme === 'day' ? 'border-amber-200' : 'border-violet-800/60'}`}>
+                    <div className="text-[5px] text-violet-500/80 uppercase font-bold">Val</div>
+                    <div className="text-[10px] font-black text-violet-500">{card.value}</div>
                   </div>
                 )}
               </div>
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-violet-500/10 to-transparent rounded-xl pointer-events-none" />
             </div>
 
             {/* Back */}
             <div
-              className="absolute inset-0 rounded-xl border-2 border-white/20 shadow-xl bg-cover bg-center bg-no-repeat"
+              className="absolute inset-0 rounded-lg border-2 border-white/20 shadow-xl bg-cover bg-center bg-no-repeat"
               style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundImage: backBg }}
             >
-              <div className="absolute inset-0 bg-black/30 rounded-xl" />
-              <div className="absolute inset-2 border border-white/10 rounded-lg" />
+              <div className="absolute inset-0 bg-black/30 rounded-lg" />
+              <div className="absolute inset-1 border border-white/10 rounded-md" />
             </div>
           </motion.div>
         </motion.div>

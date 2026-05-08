@@ -11,10 +11,14 @@ export const BoardGrid: React.FC<BoardGridProps> = ({ theme = 'night' }) => {
 
   // Compute cell size dynamically so board fits the available canvas
   const { cellSize, boardTotal } = useMemo(() => {
-    const availableW = window.innerWidth - 226 - 286 - 64; // left panel + right panel + padding
-    const availableH = window.innerHeight - 56 - 90;       // navbar + title/legend/padding
-    const maxDim = Math.min(availableW, availableH);
-    const cs = Math.max(72, Math.min(116, Math.floor((maxDim - GAP * 4) / 5)));
+    const ZONE_W = 152, Z_GAP = 8;
+    const canvasW  = window.innerWidth  - 226 - 286;
+    const canvasH  = window.innerHeight - 56;
+    const boardAvailW = canvasW - 2 * (ZONE_W + Z_GAP);
+    const boardAvailH = canvasH - 60;
+    const cellFromW = Math.floor((boardAvailW - 32 - GAP * 4) / 5);
+    const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 58) / 5);
+    const cs = Math.max(55, Math.min(100, Math.min(cellFromW, cellFromH)));
     return { cellSize: cs, boardTotal: cs * 5 + GAP * 4 };
   }, []);
 

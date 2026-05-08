@@ -14,15 +14,34 @@ const initialCharacters: Character[] = [
   { id: 'boss-1', name: '魔王', role: 'boss',    emoji: '👾', color: '#f97316', hpBars: [true, true, true, true, true], attack: 8, defense: 5 },
 ];
 
-// Pieces are positioned roughly where a centered 5x5 board would be on a 1280px screen
-// Board left≈225, top≈120, each cell≈70px
-const initialBoardPieces: BoardPiece[] = [
-  { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#ef4444', x: 295, y: 415, zIndex: 6 },
-  { id: 'piece-2', label: '法', role: 'mage',    emoji: '🧙', color: '#8b5cf6', x: 365, y: 415, zIndex: 6 },
-  { id: 'piece-3', label: '弓', role: 'archer',  emoji: '🏹', color: '#10b981', x: 435, y: 415, zIndex: 6 },
-  { id: 'piece-4', label: '癒', role: 'healer',  emoji: '💊', color: '#06b6d4', x: 365, y: 345, zIndex: 6 },
-  { id: 'piece-5', label: '魔', role: 'boss',    emoji: '👾', color: '#f97316', x: 365, y: 135, zIndex: 6 },
-];
+// Same constants as FreeCanvas / BoardGrid
+const Z_GAP = 8, MIN_ZONE = 80;
+
+const getInitialBoardPieces = (): BoardPiece[] => {
+  const GAP = 8;
+  const canvasW  = typeof window !== 'undefined' ? window.innerWidth - 226 - 286 : 768;
+  const canvasH  = typeof window !== 'undefined' ? window.innerHeight - 56 : 664;
+  const boardAvailW = canvasW - 2 * (MIN_ZONE + Z_GAP);
+  const boardAvailH = canvasH - 60;
+  const cellFromW = Math.floor((boardAvailW - 32 - GAP * 4) / 5);
+  const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 58) / 5);
+  const cell    = Math.max(64, Math.min(100, Math.min(cellFromW, cellFromH)));
+  const boardW  = cell * 5 + GAP * 4 + 32;
+  const boardH  = cell * 5 + GAP * 4 + 32 + 58;
+  const boardLeft = Math.round((canvasW - boardW) / 2);
+  const boardTop  = Math.max(10, Math.round((canvasH - boardH) / 2));
+  // Piece zone: symmetric right side
+  const zoneW = Math.max(MIN_ZONE, boardLeft - Z_GAP);
+  const rx    = boardLeft + boardW + Z_GAP + Math.round(zoneW / 2) - 20;
+  const step  = Math.min(80, (boardH - 60) / 5);
+  return [
+    { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#ef4444', x: rx, y: boardTop + 30,           zIndex: 6 },
+    { id: 'piece-2', label: '法', role: 'mage',    emoji: '🧙', color: '#8b5cf6', x: rx, y: boardTop + 30 + step,     zIndex: 6 },
+    { id: 'piece-3', label: '弓', role: 'archer',  emoji: '🏹', color: '#10b981', x: rx, y: boardTop + 30 + step * 2, zIndex: 6 },
+    { id: 'piece-4', label: '癒', role: 'healer',  emoji: '💊', color: '#06b6d4', x: rx, y: boardTop + 30 + step * 3, zIndex: 6 },
+    { id: 'piece-5', label: '魔', role: 'boss',    emoji: '👾', color: '#f97316', x: rx, y: boardTop + 30 + step * 4, zIndex: 6 },
+  ];
+};
 
 // ── Mock Cards ─────────────────────────────────────────────────
 const mockCards: Record<string, Card> = {
@@ -49,15 +68,31 @@ const initialDecks: Record<string, Deck> = {
   'deck-1': { id: 'deck-1', name: 'Starter Deck', cards: defaultDeckCards, backImage: DEFAULT_BACK_IMAGE },
 };
 
+const getInitialDice = (): FreeDice[] => {
+  const GAP = 8;
+  const canvasW  = typeof window !== 'undefined' ? window.innerWidth - 226 - 286 : 768;
+  const canvasH  = typeof window !== 'undefined' ? window.innerHeight - 56 : 664;
+  const boardAvailW = canvasW - 2 * (MIN_ZONE + Z_GAP);
+  const boardAvailH = canvasH - 60;
+  const cellFromW = Math.floor((boardAvailW - 32 - GAP * 4) / 5);
+  const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 58) / 5);
+  const cell  = Math.max(64, Math.min(100, Math.min(cellFromW, cellFromH)));
+  const boardW    = cell * 5 + GAP * 4 + 32;
+  const boardLeft = Math.round((canvasW - boardW) / 2);
+  // Dice centered horizontally above board
+  const diceX = boardLeft + Math.round(boardW / 2) - 40;
+  return [{ id: 'dice-initial', x: diceX, y: 10, sides: 12, currentValue: 1, isRolling: false, zIndex: 8 }];
+};
+
 const initialState: GameState = {
   decks: initialDecks,
   cards: mockCards,
   freeCards: [],
-  freeDice: [], // dice added by App.tsx useEffect at right-side position
+  freeDice: getInitialDice(),
   diceHistory: [],
   topZIndex: 10,
   characters: initialCharacters,
-  boardPieces: initialBoardPieces,
+  boardPieces: getInitialBoardPieces(),
 };
 
 // ── Store Interface ────────────────────────────────────────────
@@ -313,11 +348,11 @@ export const useGameStore = create<GameStore>()(
             }
           }
           // Reset board pieces to initial positions
-          return { freeCards: [], decks: newDecks, boardPieces: initialBoardPieces };
+          return { freeCards: [], decks: newDecks, boardPieces: getInitialBoardPieces() };
         }),
     }),
     {
-      name: 'board-game-storage-v6',
+      name: 'board-game-storage-v7',
       partialize: (state) => ({
         cards: state.cards,
         decks: state.decks,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FreeCanvas } from './components/FreeCanvas/FreeCanvas';
 import { DeckPanel } from './components/DeckPanel/DeckPanel';
 import { DeckBuilder } from './components/DeckBuilder/DeckBuilder';
@@ -10,19 +10,6 @@ function App() {
   const [theme, setTheme] = useState<'day' | 'night'>('night');
   const clearTable = useGameStore((s) => s.clearTable);
   const diceHistory = useGameStore((s) => s.diceHistory);
-  const freeDice = useGameStore((s) => s.freeDice);
-  const addDice = useGameStore((s) => s.addDice);
-
-  // Place D12 dice on the RIGHT side of canvas on first load
-  useEffect(() => {
-    if (currentView === 'play' && freeDice.length === 0) {
-      // canvas width = viewport - left panel (226) - right panel (286)
-      const canvasW = window.innerWidth - 226 - 286;
-      const diceX = canvasW - 110; // near right edge
-      addDice(diceX, 60, 12);
-    }
-  }, [currentView, freeDice.length, addDice]);
-
   const isDark = theme === 'night';
 
   return (

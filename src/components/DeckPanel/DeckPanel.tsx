@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../store/gameStore';
+import { calcBoardLayout } from '../FreeCanvas/FreeCanvas';
 
 const DEFAULT_BACK = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
 
@@ -10,10 +11,14 @@ export const DeckPanel: React.FC<{ theme?: 'day' | 'night' }> = ({ theme = 'nigh
   const [collapsed, setCollapsed] = useState(false);
   const [openDeckId, setOpenDeckId] = useState<string | null>(null);
 
-  const handleDrawToCenter = (deckId: string) => {
-    // Place near center of screen
-    const x = window.innerWidth / 2 - 55 + (Math.random() - 0.5) * 80;
-    const y = window.innerHeight / 2 - 77 + (Math.random() - 0.5) * 80;
+  const spawnInHandZone = (deckId: string) => {
+    const { handL, handW, boardTop } = calcBoardLayout();
+    const n = useGameStore.getState().freeCards.length;
+    const col = n % 2;
+    const row = Math.floor(n / 2) % 8;
+    const colOffset = Math.min(74, Math.max(0, handW - 74 - 4));
+    const x = handL + 4 + col * colOffset;
+    const y = boardTop + 30 + row * 52;
     placeCardFromDeck(deckId, x, y);
   };
 
@@ -74,7 +79,7 @@ export const DeckPanel: React.FC<{ theme?: 'day' | 'night' }> = ({ theme = 'nigh
                       <div className="px-2 pb-2">
                         <button
                           className="w-full py-1.5 bg-violet-600/80 hover:bg-violet-500 text-white text-xs font-bold rounded-lg transition-colors mb-2"
-                          onClick={() => handleDrawToCenter(deck.id)}
+                          onClick={() => spawnInHandZone(deck.id)}
                         >
                           🎴 隨機抽一張到桌面
                         </button>
@@ -87,11 +92,7 @@ export const DeckPanel: React.FC<{ theme?: 'day' | 'night' }> = ({ theme = 'nigh
                               <div
                                 key={c.id}
                                 className="flex items-center gap-2 text-[10px] text-white/60 bg-white/3 hover:bg-white/8 rounded-lg px-2 py-1 cursor-pointer transition-colors"
-                                onClick={() => {
-                                  const x = window.innerWidth / 2 - 55 + (Math.random() - 0.5) * 120;
-                                  const y = window.innerHeight / 2 - 77 + (Math.random() - 0.5) * 120;
-                                  placeCardFromDeck(deck.id, x, y);
-                                }}
+                                onClick={() => spawnInHandZone(deck.id)}
                               >
                                 <span className="truncate flex-1">{c.name}</span>
                                 <span className="text-white/20 shrink-0">×{count}</span>

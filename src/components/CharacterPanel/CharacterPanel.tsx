@@ -150,10 +150,16 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' 
   const isDark = theme === 'night';
 
   const handleAddPiece = (preset: typeof ROLE_PRESETS[0]) => {
-    // Spawn in the right-side staging strip of the canvas
+    const GAP = 8;
     const canvasW = Math.max(400, window.innerWidth - 226 - 286);
-    const x = canvasW - 80 + (Math.random() - 0.5) * 20; // right edge strip
-    const y = 80 + Math.random() * (window.innerHeight - 300); // random vertical
+    const canvasH = Math.max(400, window.innerHeight - 56);
+    const maxDim  = Math.min(canvasW - 64, canvasH - 60);
+    const cell    = Math.max(74, Math.min(100, Math.floor((maxDim - GAP * 4) / 5)));
+    const boardW  = cell * 5 + GAP * 4 + 32;
+    const boardLeft = (canvasW - boardW) / 2;
+    const pieceZoneL = boardLeft + boardW + 10;
+    const x = pieceZoneL + 16 + Math.random() * 20;
+    const y = 60 + Math.random() * (canvasH - 160);
     addBoardPiece({ label: preset.name.slice(0, 1), role: preset.role, emoji: preset.emoji, color: preset.color, x, y });
   };
 

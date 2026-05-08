@@ -9,7 +9,6 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
   const moveDice = useGameStore((s) => s.moveDice);
   const rollDice = useGameStore((s) => s.rollDice);
   const changeDiceSides = useGameStore((s) => s.changeDiceSides);
-  const removeDice = useGameStore((s) => s.removeDice);
   const bringDiceToFront = useGameStore((s) => s.bringDiceToFront);
 
   const [isRolling, setIsRolling] = useState(false);
@@ -188,14 +187,6 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
                 {dice.sides === s && <span className="text-violet-400">✓</span>}
               </button>
             ))}
-            <div className="border-t border-white/8 mt-1 pt-1">
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-red-400/80 hover:bg-red-500/15 transition-colors"
-                onClick={(e) => { e.stopPropagation(); removeDice(dice.id); }}
-              >
-                🗑️ 移除
-              </button>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
