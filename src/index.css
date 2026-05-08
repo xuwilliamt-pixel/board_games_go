@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-board-bg: #1a1525;
+  --color-board-grid: #2d2438;
+  --color-card-bg: #2a2438;
+  --color-card-border: #4a3f5e;
+  --color-accent: #a78bfa;
+  --color-accent-glow: rgba(167, 139, 250, 0.5);
+  
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 10px 15px -3px rgba(167, 139, 250, 0.3), 0 4px 6px -2px rgba(167, 139, 250, 0.2);
+  --shadow-glow: 0 0 15px rgba(167, 139, 250, 0.6);
+}
+
+@layer base {
+  body {
+    @apply bg-board-bg text-gray-200 overflow-hidden;
+    background-image: radial-gradient(circle at center, #2a2238 0%, #1a1525 100%);
+    /* Wood texture overlay can be added here */
+  }
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Custom scrollbar for hand area */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-card-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
