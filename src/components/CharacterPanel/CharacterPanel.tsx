@@ -25,7 +25,7 @@ interface HPBarProps {
 const HPBar: React.FC<HPBarProps> = ({ filled, color, onClick }) => (
   <button
     onClick={onClick}
-    className="relative w-8 h-3 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
+    className="relative w-4 h-3 rounded-sm transition-all duration-200 hover:scale-110 active:scale-95"
     style={{
       background: filled ? color : 'transparent',
       border: `2px solid ${color}`,
@@ -61,7 +61,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, theme }) => {
           <span className="text-xl">{character.emoji}</span>
           <div>
             <div className="font-black text-sm" style={{ color: character.color }}>{character.name}</div>
-            <div className="text-[9px] font-semibold uppercase opacity-60" style={{ color: isDark ? '#fff' : '#000' }}>
+            <div className="text-[12px] font-semibold uppercase opacity-60" style={{ color: isDark ? '#fff' : '#000' }}>
               {isHero ? '勇者' : character.role === 'boss' ? '魔王' : '怪物'}
             </div>
           </div>

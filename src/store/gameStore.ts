@@ -7,15 +7,15 @@ const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}
 
 // ── Initial Characters ─────────────────────────────────────────
 const initialCharacters: Character[] = [
-  { id: 'hero-1', name: '戰士', role: 'warrior', emoji: '⚔️', color: '#ef4444', hpBars: [true, true, true], attack: 4, defense: 3 },
-  { id: 'hero-2', name: '法師', role: 'mage', emoji: '🧙', color: '#8b5cf6', hpBars: [true, true, true], attack: 6, defense: 1 },
-  { id: 'hero-3', name: '弓手', role: 'archer', emoji: '🏹', color: '#10b981', hpBars: [true, true, true], attack: 4, defense: 2 },
-  { id: 'hero-4', name: '治癒師', role: 'healer', emoji: '💊', color: '#06b6d4', hpBars: [true, true, true], attack: 2, defense: 2 },
-  { id: 'boss-1', name: '魔王', role: 'boss', emoji: '👾', color: '#f97316', hpBars: [true, true, true, true, true], attack: 8, defense: 5 },
-  { id: 'bigFour-1', name: '猴', role: 'bigFour', emoji: '🐒', color: '#91eb75ff', hpBars: [true, true, true, true, true], attack: 5, defense: 3 },
-  { id: 'bigFour-2', name: '雞', role: 'bigFour', emoji: '🐔', color: '#fcefe6ff', hpBars: [true, true, true, true, true], attack: 5, defense: 3 },
-  { id: 'bigFour-3', name: '狗', role: 'bigFour', emoji: '🐶', color: '#f2f555ff', hpBars: [true, true, true, true, true], attack: 5, defense: 3 },
-  { id: 'bigFour-4', name: '豬', role: 'bigFour', emoji: '🐷', color: '#d34cc8ff', hpBars: [true, true, true, true, true], attack: 5, defense: 3 },
+  { id: 'hero-1', name: '戰士', role: 'warrior', emoji: '⚔️', color: '#ef4444', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 4, defense: 3 },
+  { id: 'hero-2', name: '法師', role: 'mage', emoji: '🧙', color: '#8b5cf6', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 6, defense: 1 },
+  { id: 'hero-3', name: '弓手', role: 'archer', emoji: '🏹', color: '#10b981', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 4, defense: 2 },
+  { id: 'hero-4', name: '治癒師', role: 'healer', emoji: '💊', color: '#06b6d4', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 2, defense: 2 },
+  { id: 'boss-1', name: '魔王', role: 'boss', emoji: '👾', color: '#f97316', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 8, defense: 5 },
+  { id: 'bigFour-1', name: '猴', role: 'bigFour', emoji: '🐒', color: '#91eb75ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
+  { id: 'bigFour-2', name: '雞', role: 'bigFour', emoji: '🐔', color: '#fcefe6ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
+  { id: 'bigFour-3', name: '狗', role: 'bigFour', emoji: '🐶', color: '#f2f555ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
+  { id: 'bigFour-4', name: '豬', role: 'bigFour', emoji: '🐷', color: '#d34cc8ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
 ];
 
 // Same constants as FreeCanvas / BoardGrid
@@ -357,7 +357,7 @@ export const useGameStore = create<GameStore>()(
         }),
     }),
     {
-      name: 'board-game-storage-v9',
+      name: 'board-game-storage-v10',
       partialize: (state) => ({
         cards: state.cards,
         decks: state.decks,
