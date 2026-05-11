@@ -19,7 +19,12 @@ const defaultCardData: Omit<Card, 'id'> = {
   value: 1,
 };
 
-export const CardForm: React.FC<CardFormProps> = ({ initialData, onSubmit, onCancel, theme = 'night' }) => {
+export const CardForm: React.FC<CardFormProps> = ({
+  initialData,
+  onSubmit,
+  onCancel,
+  theme = 'night',
+}) => {
   const [formData, setFormData] = useState<Omit<Card, 'id'>>(defaultCardData);
   const isDark = theme === 'night';
 
@@ -37,81 +42,212 @@ export const CardForm: React.FC<CardFormProps> = ({ initialData, onSubmit, onCan
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return;
+    if (!formData.name.trim()) return;
     onSubmit(formData);
   };
 
-  const inputStyle: React.CSSProperties = {
-    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-    borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.14)',
-    color: isDark ? 'white' : '#1c1208',
-  };
-  const labelStyle: React.CSSProperties = { color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)' };
-  const formBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
-  const formBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.1)';
-  const titleColor = isDark ? 'white' : '#1c1208';
+  // ── Styles ──
+  const formBg      = isDark ? '#0E1525' : '#FFFFFF';
+  const formBorder  = isDark ? 'rgba(255,255,255,0.08)' : '#D9E2F2';
+  const labelColor  = isDark ? '#5A6A8A' : '#9AA3BA';
+  const headColor   = isDark ? '#F4F7FF' : '#1A2340';
 
-  const inputCls = 'w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors border focus:border-violet-500';
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    minHeight: 44,
+    padding: '0 14px',
+    background: isDark ? 'rgba(255,255,255,0.05)' : '#F3F6FB',
+    border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2'}`,
+    borderRadius: 10,
+    fontSize: 14,
+    fontFamily: 'inherit',
+    color: isDark ? '#F4F7FF' : '#1A2340',
+    outline: 'none',
+    transition: 'border-color 150ms, box-shadow 150ms',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: labelColor,
+    marginBottom: 6,
+  };
+
+  const fieldStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 0 };
+
+  const onFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    e.target.style.borderColor = isDark ? 'var(--accent-purple)' : '#6B3FD4';
+    e.target.style.boxShadow = isDark
+      ? '0 0 0 3px rgba(139,92,255,0.18)'
+      : '0 0 0 3px rgba(107,63,212,0.12)';
+  };
+
+  const onBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    e.target.style.borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2';
+    e.target.style.boxShadow = 'none';
+  };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 p-5 rounded-2xl border"
-      style={{ background: formBg, borderColor: formBorder }}
+      style={{
+        background: formBg,
+        border: `1.5px solid ${formBorder}`,
+        borderRadius: 16,
+        padding: '20px 18px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
     >
-      <h3 className="text-base font-black" style={{ color: titleColor }}>
+      {/* Title */}
+      <h3 style={{ fontSize: 16, fontWeight: 800, color: headColor, marginBottom: 0 }}>
         {initialData ? '✏️ 編輯卡牌' : '✨ 建立新卡牌'}
       </h3>
 
-      <div>
-        <label className="text-[10px] font-bold uppercase mb-1 block" style={labelStyle}>名稱 *</label>
-        <input required name="name" value={formData.name} onChange={handleChange} className={inputCls} style={inputStyle} placeholder="卡牌名稱" />
+      {/* Name */}
+      <div style={fieldStyle}>
+        <label style={labelStyle}>名稱 *</label>
+        <input
+          required
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          style={inputStyle}
+          placeholder="卡牌名稱"
+        />
       </div>
 
-      <div>
-        <label className="text-[10px] font-bold uppercase mb-1 block" style={labelStyle}>類型</label>
-        <select name="type" value={formData.type} onChange={handleChange} className={inputCls} style={inputStyle}>
-          <option value="creature" style={{ background: isDark ? '#1a1a2e' : '#e8dfd4', color: isDark ? 'white' : '#1c1208' }}>生物 (Creature)</option>
-          <option value="spell" style={{ background: isDark ? '#1a1a2e' : '#e8dfd4', color: isDark ? 'white' : '#1c1208' }}>法術 (Spell)</option>
-          <option value="item" style={{ background: isDark ? '#1a1a2e' : '#e8dfd4', color: isDark ? 'white' : '#1c1208' }}>道具 (Item)</option>
-          <option value="hero" style={{ background: isDark ? '#1a1a2e' : '#e8dfd4', color: isDark ? 'white' : '#1c1208' }}>英雄 (Hero)</option>
+      {/* Type */}
+      <div style={fieldStyle}>
+        <label style={labelStyle}>類型</label>
+        <select
+          name="type"
+          value={formData.type}
+          onChange={handleChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          style={{ ...inputStyle, cursor: 'pointer' }}
+        >
+          <option value="creature" style={{ background: isDark ? '#0E1525' : '#fff' }}>🐉 生物 (Creature)</option>
+          <option value="spell"    style={{ background: isDark ? '#0E1525' : '#fff' }}>✨ 法術 (Spell)</option>
+          <option value="item"     style={{ background: isDark ? '#0E1525' : '#fff' }}>🗡️ 道具 (Item)</option>
+          <option value="hero"     style={{ background: isDark ? '#0E1525' : '#fff' }}>⭐ 英雄 (Hero)</option>
         </select>
       </div>
 
+      {/* Stats */}
       {formData.type === 'creature' ? (
         <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="text-[10px] font-bold uppercase mb-1 block" style={labelStyle}>攻擊力</label>
-            <input type="number" name="attack" value={formData.attack ?? ''} onChange={handleChange} className={inputCls} style={inputStyle} />
+          <div style={{ ...fieldStyle, flex: 1 }}>
+            <label style={{ ...labelStyle, color: '#FF5E7A' }}>⚔️ 攻擊力</label>
+            <input
+              type="number"
+              name="attack"
+              value={formData.attack ?? ''}
+              onChange={handleChange}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              style={{ ...inputStyle, textAlign: 'center', fontSize: 20, fontWeight: 900 }}
+              min={0}
+            />
           </div>
-          <div className="flex-1">
-            <label className="text-[10px] font-bold uppercase mb-1 block" style={labelStyle}>生命值</label>
-            <input type="number" name="health" value={formData.health ?? ''} onChange={handleChange} className={inputCls} style={inputStyle} />
+          <div style={{ ...fieldStyle, flex: 1 }}>
+            <label style={{ ...labelStyle, color: '#35E0A1' }}>❤️ 生命值</label>
+            <input
+              type="number"
+              name="health"
+              value={formData.health ?? ''}
+              onChange={handleChange}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              style={{ ...inputStyle, textAlign: 'center', fontSize: 20, fontWeight: 900 }}
+              min={0}
+            />
           </div>
         </div>
       ) : (
-        <div>
-          <label className="text-[10px] font-bold uppercase mb-1 block" style={labelStyle}>數值</label>
-          <input type="number" name="value" value={formData.value ?? ''} onChange={handleChange} className={inputCls} style={inputStyle} />
+        <div style={fieldStyle}>
+          <label style={{ ...labelStyle, color: '#8B5CFF' }}>💫 數值</label>
+          <input
+            type="number"
+            name="value"
+            value={formData.value ?? ''}
+            onChange={handleChange}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            style={{ ...inputStyle, textAlign: 'center', fontSize: 20, fontWeight: 900 }}
+            min={0}
+          />
         </div>
       )}
 
-      <div>
-        <label className="text-[10px] font-bold uppercase mb-1 block" style={labelStyle}>描述</label>
-        <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className={`${inputCls} resize-none`} style={inputStyle} placeholder="卡牌效果描述..." />
+      {/* Description */}
+      <div style={fieldStyle}>
+        <label style={labelStyle}>描述</label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          rows={3}
+          style={{ ...inputStyle, minHeight: 'auto', padding: '12px 14px', resize: 'vertical', lineHeight: 1.6 }}
+          placeholder="卡牌效果描述..."
+        />
       </div>
 
-      <div>
-        <label className="text-[10px] font-bold uppercase mb-1 block" style={{ ...labelStyle, color: '#7c3aed' }}>🖼️ 背面圖片網址</label>
-        <input name="backImage" value={formData.backImage || ''} onChange={handleChange} placeholder="https://..." className={inputCls} style={inputStyle} />
-        <p className="text-[9px] mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.3)' }}>設定此網址後，卡牌的背面會顯示此圖片</p>
+      {/* Back image URL */}
+      <div style={fieldStyle}>
+        <label style={{ ...labelStyle, color: isDark ? 'var(--accent-purple)' : '#6B3FD4' }}>
+          🖼️ 背面圖片網址
+        </label>
+        <input
+          name="backImage"
+          value={formData.backImage || ''}
+          onChange={handleChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          placeholder="https://..."
+          style={inputStyle}
+        />
+        <p style={{ fontSize: 12, marginTop: 4, color: isDark ? 'rgba(255,255,255,0.22)' : '#9AA3BA' }}>
+          設定後卡牌背面會顯示此圖片
+        </p>
       </div>
 
-      <div className="flex gap-3 mt-2">
-        <button type="submit" className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">
-          {initialData ? '儲存變更' : '建立卡牌'}
+      {/* Submit / Cancel */}
+      <div className="flex gap-3" style={{ marginTop: 4 }}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          style={{ flex: 1 }}
+        >
+          {initialData ? '💾 儲存變更' : '✨ 建立卡牌'}
         </button>
-        <button type="button" onClick={onCancel} className="flex-1 font-bold py-2 px-4 rounded-lg transition-colors text-sm border" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            minHeight: 40,
+            borderRadius: 8,
+            border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2'}`,
+            background: isDark ? 'rgba(255,255,255,0.04)' : '#F3F6FB',
+            color: isDark ? '#AAB6D3' : '#55607A',
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 150ms',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isDark ? 'rgba(255,255,255,0.25)' : '#B8C9E8'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2'; }}
+        >
           取消
         </button>
       </div>

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { FreeCard } from '../FreeCard/FreeCard';
 import { FreeDice } from '../FreeDice/FreeDice';
@@ -7,62 +7,84 @@ import { BoardGrid } from '../BoardGrid/BoardGrid';
 
 interface FreeCanvasProps { theme: 'day' | 'night'; }
 
-export const CARD_W  = 74;  // card pixel width
-export const ZONE_W  = CARD_W * 2 + 4; // 152px — 2 cards wide
+export const CARD_W = 74;
+export const ZONE_W = CARD_W * 2 + 4;   // 152px — 2 cards wide
 const Z_GAP = 8;
 
-export function calcBoardLayout() {
-  const GAP = 8;
-  const canvasW = window.innerWidth  - 226 - 286;
-  const canvasH = window.innerHeight - 56;
+// ── Layout calculation (pure function, no side-effects) ────────
+export function calcBoardLayout(canvasW = 0, canvasH = 0) {
+  if (!canvasW) canvasW = window.innerWidth;
+  if (!canvasH) canvasH = window.innerHeight - 56;
 
-  // Cell size: board must leave ZONE_W+gap on each side
+  const GAP = 10;
+  // Board fits inside the available width, leaving ZONE_W+gap on each side for zones
   const boardAvailW = canvasW - 2 * (ZONE_W + Z_GAP);
   const boardAvailH = canvasH - 60;
   const cellFromW   = Math.floor((boardAvailW - 32 - GAP * 4) / 5);
-  const cellFromH   = Math.floor((boardAvailH - 32 - GAP * 4 - 58) / 5);
-  const cellSize    = Math.max(55, Math.min(100, Math.min(cellFromW, cellFromH)));
+  const cellFromH   = Math.floor((boardAvailH - 32 - GAP * 4 - 68) / 5);
+  const cellSize    = Math.max(70, Math.min(110, Math.min(cellFromW, cellFromH)));
 
   const boardGrid = cellSize * 5 + GAP * 4;
   const boardW    = boardGrid + 32;
-  const boardH    = boardGrid + 32 + 58;
+  const boardH    = boardGrid + 32 + 68;
 
-  // Center board in FULL WINDOW (compensate for panel asymmetry)
-  // Panel asymmetry = (rightPanel - leftPanel)/2 = (286-226)/2 = 30px
-  const boardLeftCanvas = Math.round((canvasW - boardW) / 2) + 30;
-  const boardLeft       = Math.max(ZONE_W + Z_GAP, boardLeftCanvas);
-  const boardTop        = Math.max(10, Math.round((canvasH - boardH) / 2));
+  // Board is always horizontally centered in its canvas
+  const boardLeft = Math.round((canvasW - boardW) / 2);
+  const boardTop  = Math.max(10, Math.round((canvasH - boardH) / 2));
 
   // Hand zone: left of board
   const handL = Math.max(0, boardLeft - ZONE_W - Z_GAP);
-  const handW = boardLeft - Z_GAP - handL;  // actual width (may be < ZONE_W on tiny screens)
+  const handW = boardLeft - Z_GAP - handL;
 
-  // Piece zone: right of board, same width as hand zone
+  // Piece zone: right of board
   const pieceL = boardLeft + boardW + Z_GAP;
   const pieceW = ZONE_W;
 
-  return { canvasW, canvasH, boardLeft, boardTop, boardW, boardH, handL, handW, pieceL, pieceW };
+  return { canvasW, canvasH, boardLeft, boardTop, boardW, boardH, handL, handW, pieceL, pieceW, cellSize };
 }
 
 export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
-  const freeCards   = useGameStore((s) => s.freeCards);
-  const freeDice    = useGameStore((s) => s.freeDice);
-  const boardPieces = useGameStore((s) => s.boardPieces);
+  const freeCards         = useGameStore((s) => s.freeCards);
+  const freeDice          = useGameStore((s) => s.freeDice);
+  const boardPieces       = useGameStore((s) => s.boardPieces);
   const placeCardFromDeck = useGameStore((s) => s.placeCardFromDeck);
-  const decks = useGameStore((s) => s.decks);
+  const decks             = useGameStore((s) => s.decks);
 
-  const { boardLeft, boardTop, boardH, handL, handW, pieceL, pieceW } = useMemo(calcBoardLayout, []);
+  // Track actual canvas size so layout re-calculates on panel toggle / resize
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
 
-  // Card spawn: 2 columns inside hand zone, stacking downward
-  const colW = Math.max(CARD_W, Math.floor(handW / 2));
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setCanvasSize({ w: el.clientWidth, h: el.clientHeight });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Derive layout from the measured canvas, fall back to window if not mounted yet
+  const layout = calcBoardLayout(
+    canvasSize.w || undefined,
+    canvasSize.h || undefined,
+  );
+  const { boardLeft, boardTop, boardH, handL, handW, pieceL, pieceW } = layout;
+
+  // Card spawn inside hand zone
   const spawnCard = useCallback((deckId: string) => {
-    const n = useGameStore.getState().freeCards.length;
+    const l = calcBoardLayout(
+      containerRef.current?.clientWidth,
+      containerRef.current?.clientHeight,
+    );
+    const n   = useGameStore.getState().freeCards.length;
     const col = n % 2;
     const row = Math.floor(n / 2) % 8;
-    const x = handL + 4 + col * Math.min(colW, handW - CARD_W - 4);
-    const y = boardTop + 30 + row * 52;
+    const colW = Math.max(CARD_W, Math.floor(l.handW / 2));
+    const x   = l.handL + 4 + col * Math.min(colW, l.handW - CARD_W - 4);
+    const y   = l.boardTop + 30 + row * 52;
     placeCardFromDeck(deckId, x, y);
-  }, [handL, handW, boardTop, colW, placeCardFromDeck]);
+  }, [placeCardFromDeck]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement) !== e.currentTarget) return;
@@ -71,42 +93,116 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
   }, [decks, spawnCard]);
 
   const isDark = theme === 'night';
-  const bg: React.CSSProperties = isDark ? {
-    backgroundColor: '#0d0d1a',
-    backgroundImage: ['radial-gradient(ellipse at 20% 50%, rgba(109,40,217,0.07) 0%, transparent 60%)',
-      'linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px)',
-      'linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)'].join(', '),
-    backgroundSize: '100% 100%, 40px 40px, 40px 40px',
-  } : {
-    backgroundColor: '#e8e0d0',
-    backgroundImage: ['radial-gradient(ellipse at 15% 30%, rgba(255,220,150,0.4) 0%, transparent 55%)',
-      'linear-gradient(rgba(100,80,60,0.06) 1px, transparent 1px)',
-      'linear-gradient(90deg, rgba(100,80,60,0.06) 1px, transparent 1px)'].join(', '),
-    backgroundSize: '100% 100%, 40px 40px, 40px 40px',
+
+  // ── Background ──
+  const bg: React.CSSProperties = isDark
+    ? {
+        backgroundColor: '#070B14',
+        backgroundImage: [
+          'radial-gradient(ellipse at 20% 40%, rgba(139,92,255,0.07) 0%, transparent 55%)',
+          'radial-gradient(ellipse at 80% 60%, rgba(36,216,255,0.05) 0%, transparent 50%)',
+          'linear-gradient(rgba(255,255,255,0.013) 1px, transparent 1px)',
+          'linear-gradient(90deg, rgba(255,255,255,0.013) 1px, transparent 1px)',
+        ].join(', '),
+        backgroundSize: '100% 100%, 100% 100%, 48px 48px, 48px 48px',
+      }
+    : {
+        backgroundColor: '#F3F6FB',
+        backgroundImage: [
+          'radial-gradient(ellipse at 20% 30%, rgba(107,63,212,0.06) 0%, transparent 55%)',
+          'radial-gradient(ellipse at 80% 70%, rgba(14,165,201,0.05) 0%, transparent 50%)',
+          'linear-gradient(rgba(26,35,64,0.04) 1px, transparent 1px)',
+          'linear-gradient(90deg, rgba(26,35,64,0.04) 1px, transparent 1px)',
+        ].join(', '),
+        backgroundSize: '100% 100%, 100% 100%, 48px 48px, 48px 48px',
+      };
+
+  // ── Zone colours ──
+  const handBorder  = isDark ? 'rgba(99,102,241,0.52)'  : 'rgba(107,63,212,0.38)';
+  const handBg      = isDark ? 'rgba(99,102,241,0.06)'  : 'rgba(107,63,212,0.05)';
+  const pieceBorder = isDark ? 'rgba(255,157,66,0.68)'  : 'rgba(224,122,32,0.52)';
+  const pieceBg     = isDark ? 'rgba(255,157,66,0.07)'  : 'rgba(224,122,32,0.06)';
+  const pieceShadow = isDark
+    ? '0 0 32px rgba(255,157,66,0.18), inset 0 0 14px rgba(255,157,66,0.04)'
+    : '0 0 18px rgba(224,122,32,0.14)';
+
+  const zoneLabelStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 10,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.10em',
+    textTransform: 'uppercase',
+    userSelect: 'none',
+    pointerEvents: 'none',
   };
 
-  const handAccent  = isDark ? 'rgba(99,102,241,0.55)' : 'rgba(79,70,229,0.4)';
-  const pieceAccent = isDark ? 'rgba(249,115,22,0.72)' : 'rgba(217,85,10,0.55)';
-  const lbl: React.CSSProperties = { position:'absolute', top:8, left:0, right:0, textAlign:'center', fontSize:9, fontWeight:900, letterSpacing:'0.1em', textTransform:'uppercase' };
-
   return (
-    <div className="absolute inset-0 overflow-hidden transition-all duration-700" style={bg} onDoubleClick={handleDoubleClick}>
+    <div
+      ref={containerRef}
+      data-canvas="true"
+      className="absolute inset-0 overflow-hidden"
+      style={{ ...bg, transition: 'background-color 0.5s' }}
+      onDoubleClick={handleDoubleClick}
+    >
+      {/* ── Hand Zone (left of board) ── */}
+      {handW > 20 && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: handL,
+            top: boardTop,
+            width: handW,
+            height: boardH,
+            border: `1.5px dashed ${handBorder}`,
+            background: handBg,
+            backdropFilter: 'blur(4px)',
+            borderRadius: 16,
+            transition: 'left 0.3s, width 0.3s, top 0.3s, height 0.3s',
+          }}
+        >
+          <div style={{ ...zoneLabelStyle, color: handBorder }}>🃏 手牌區</div>
+        </div>
+      )}
 
-      {/* Hand zone */}
-      <div className="pointer-events-none absolute" style={{ left:handL, top:boardTop, width:handW, height:boardH, border:`1.5px dashed ${handAccent}`, background: isDark?'rgba(99,102,241,0.05)':'rgba(99,102,241,0.07)', backdropFilter:'blur(4px)', borderRadius:16 }}>
-        <div style={{ ...lbl, color:handAccent }}>🃏 手牌區</div>
+      {/* ── Piece Zone (right of board) ── */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          left: pieceL,
+          top: boardTop,
+          width: pieceW,
+          height: boardH,
+          border: `2px solid ${pieceBorder}`,
+          background: pieceBg,
+          backdropFilter: 'blur(4px)',
+          borderRadius: 16,
+          boxShadow: pieceShadow,
+          transition: 'left 0.3s, top 0.3s, height 0.3s',
+        }}
+      >
+        <div style={{ ...zoneLabelStyle, color: pieceBorder }}>♟️ 棋子區</div>
       </div>
 
-      {/* Piece zone */}
-      <div className="pointer-events-none absolute" style={{ left:pieceL, top:boardTop, width:pieceW, height:boardH, border:`2px solid ${pieceAccent}`, background: isDark?'rgba(249,115,22,0.06)':'rgba(249,115,22,0.08)', backdropFilter:'blur(4px)', borderRadius:16, boxShadow: isDark?'0 0 24px rgba(249,115,22,0.15)':'0 0 14px rgba(249,115,22,0.12)' }}>
-        <div style={{ ...lbl, color:pieceAccent }}>♟️ 棋子區</div>
+      {/* ── Board (always centred in canvas) ── */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: boardLeft,
+          top: boardTop,
+          zIndex: 2,
+          transition: 'left 0.3s, top 0.3s',
+        }}
+      >
+        <div className="pointer-events-auto">
+          <BoardGrid theme={theme} canvasSize={canvasSize} />
+        </div>
       </div>
 
-      {/* Board */}
-      <div className="absolute pointer-events-none" style={{ left:boardLeft, top:boardTop, zIndex:2 }}>
-        <div className="pointer-events-auto"><BoardGrid theme={theme} /></div>
-      </div>
-
+      {/* ── Floating elements ── */}
       {freeDice.map((d)    => <FreeDice  key={d.id}         dice={d}  />)}
       {boardPieces.map((p) => <FreePiece key={p.id}         piece={p} />)}
       {freeCards.map((c)   => <FreeCard  key={c.instanceId} card={c}  theme={theme} />)}

@@ -135,36 +135,35 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night' }>
           >
             {/* Front */}
             <div
-              className={`absolute inset-0 rounded-lg border-2 overflow-hidden shadow-xl flex flex-col ${
-                theme === 'day'
-                  ? 'border-amber-400 bg-amber-50'
-                  : 'border-violet-400/80 bg-[#1e1535]'
-              }`}
+              className={`absolute inset-0 rounded-lg border-2 overflow-hidden shadow-xl flex flex-col ${theme === 'day'
+                ? 'border-amber-400 bg-amber-50'
+                : 'border-violet-400/80 bg-[#1e1535]'
+                }`}
               style={{ backfaceVisibility: 'hidden' }}
             >
               <div className="absolute inset-0 p-1 flex flex-col">
                 <div className="flex justify-between items-start">
-                  <span className={`text-[8px] font-black leading-tight truncate ${theme === 'day' ? 'text-stone-900' : 'text-white'}`}>{card.name}</span>
-                  <span className={`text-[6px] shrink-0 ml-0.5 px-0.5 rounded font-bold ${theme === 'day' ? 'bg-amber-200 text-amber-800' : 'bg-violet-900/60 text-violet-300'}`}>{card.type[0].toUpperCase()}</span>
+                  <span className={`text-[12px] font-black leading-tight truncate ${theme === 'day' ? 'text-stone-900' : 'text-white'}`}>{card.name}</span>
+                  <span className={`text-[12px] shrink-0 ml-0.5 px-0.5 rounded font-bold ${theme === 'day' ? 'bg-amber-200 text-amber-800' : 'bg-violet-900/60 text-violet-300'}`}>{card.type[0].toUpperCase()}</span>
                 </div>
-                <div className={`flex-1 text-[6px] leading-tight overflow-hidden mt-0.5 ${theme === 'day' ? 'text-stone-700' : 'text-gray-300'}`}>
+                <div className={`flex-1 text-[10px] leading-tight overflow-hidden mt-0.5 ${theme === 'day' ? 'text-stone-700' : 'text-gray-300'}`}>
                   {card.description}
                 </div>
                 {card.type === 'creature' ? (
                   <div className={`flex justify-between pt-0.5 border-t ${theme === 'day' ? 'border-amber-200' : 'border-violet-800/60'}`}>
                     <div className="text-center">
-                      <div className="text-[5px] text-red-500/80 uppercase font-bold">ATK</div>
-                      <div className="text-[10px] font-black text-red-500">{card.attack}</div>
+                      <div className="text-[9px] text-red-500/80 uppercase font-bold">ATK</div>
+                      <div className="text-[9px] font-black text-red-500">{card.attack}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-[5px] text-green-600/80 uppercase font-bold">HP</div>
-                      <div className="text-[10px] font-black text-green-600">{card.health}</div>
+                      <div className="text-[9px] text-green-600/80 uppercase font-bold">HP</div>
+                      <div className="text-[9px] font-black text-green-600">{card.health}</div>
                     </div>
                   </div>
                 ) : (
                   <div className={`text-center pt-0.5 border-t ${theme === 'day' ? 'border-amber-200' : 'border-violet-800/60'}`}>
-                    <div className="text-[5px] text-violet-500/80 uppercase font-bold">Val</div>
-                    <div className="text-[10px] font-black text-violet-500">{card.value}</div>
+                    <div className="text-[9px] text-violet-500/80 uppercase font-bold">Val</div>
+                    <div className="text-[9px] font-black text-violet-500">{card.value}</div>
                   </div>
                 )}
               </div>

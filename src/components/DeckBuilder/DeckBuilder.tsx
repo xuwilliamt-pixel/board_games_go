@@ -5,86 +5,150 @@ import type { Card } from '../../types/game';
 
 const DEFAULT_BACK = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
 
-interface DeckBuilderProps {
-  theme?: 'day' | 'night';
-}
+interface DeckBuilderProps { theme?: 'day' | 'night'; }
 
-/** Simple card preview tile for the editor library */
-const CardPreview: React.FC<{ card: Card; theme: 'day' | 'night'; actions?: React.ReactNode }> = ({
-  card,
-  theme,
-  actions,
-}) => {
+// ── Type badge config ──────────────────────────────────────────
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  creature: { label: '生物', color: '#35E0A1', bg: 'rgba(53,224,161,0.15)' },
+  spell:    { label: '法術', color: '#24D8FF', bg: 'rgba(36,216,255,0.12)' },
+  item:     { label: '道具', color: '#FF9D42', bg: 'rgba(255,157,66,0.15)' },
+  hero:     { label: '英雄', color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' },
+};
+
+// ── Card Preview ───────────────────────────────────────────────
+const CardPreview: React.FC<{
+  card: Card;
+  theme: 'day' | 'night';
+  actions?: React.ReactNode;
+}> = ({ card, theme, actions }) => {
   const [flipped, setFlipped] = useState(false);
   const isDark = theme === 'night';
-  const backBg = card.backImage ? `url(${card.backImage})` : `url(${DEFAULT_BACK})`;
+  const cfg = TYPE_CONFIG[card.type] || { label: card.type, color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' };
+
+  const cardFrontBg  = isDark ? '#18243D' : '#FFFFFF';
+  const cardBorder   = isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2';
+  const descColor    = isDark ? 'rgba(255,255,255,0.55)' : '#55607A';
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center" style={{ gap: 8 }}>
+      {/* 3D flip card */}
       <div
-        className="relative w-[110px] h-[154px] cursor-pointer hover:-translate-y-2 transition-transform"
-        style={{ perspective: '800px' }}
+        style={{ width: 116, height: 162, perspective: 800, cursor: 'pointer' }}
         onClick={() => setFlipped((f) => !f)}
-        title="點擊預覽正/背面"
+        title="點擊翻面"
       >
         <div
-          className="w-full h-full relative transition-transform duration-500"
           style={{
+            width: '100%',
+            height: '100%',
+            position: 'relative',
             transformStyle: 'preserve-3d',
-            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            transform: flipped ? 'rotateY(180deg)' : 'rotateY(0)',
+            transition: 'transform 420ms ease',
           }}
         >
           {/* Front */}
           <div
-            className="absolute inset-0 rounded-xl border-2 p-2 flex flex-col shadow-xl"
             style={{
+              position: 'absolute',
+              inset: 0,
               backfaceVisibility: 'hidden',
-              background: isDark ? '#1a1a2e' : '#faf7f0',
-              borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+              borderRadius: 12,
+              border: `1.5px solid ${cardBorder}`,
+              background: cardFrontBg,
+              padding: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: isDark
+                ? '0 4px 16px rgba(0,0,0,0.5)'
+                : '0 4px 12px rgba(26,35,64,0.10)',
             }}
           >
-            <div className="text-[11px] font-black truncate" style={{ color: isDark ? 'white' : '#1c1208' }}>{card.name}</div>
-            <div className="text-[9px] italic mt-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)' }}>{card.type}</div>
-            <div className="flex-1 text-[9px] mt-1 line-clamp-4 leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.55)' }}>
+            {/* Name */}
+            <div style={{ fontSize: 13, fontWeight: 800, color: isDark ? '#F4F7FF' : '#1A2340', lineHeight: 1.2, marginBottom: 4 }}>
+              {card.name}
+            </div>
+            {/* Type badge */}
+            <div style={{ display: 'inline-flex', alignSelf: 'flex-start', marginBottom: 6 }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 7px',
+                borderRadius: 99,
+                background: cfg.bg,
+                color: cfg.color,
+              }}>{cfg.label}</span>
+            </div>
+            {/* Description */}
+            <div style={{ fontSize: 12, color: descColor, flex: 1, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
               {card.description}
             </div>
-            {card.type === 'creature' ? (
-              <div className="flex justify-between mt-auto pt-1 border-t" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-                <span className="text-xs font-black text-red-500">{card.attack}</span>
-                <span className="text-xs font-black text-green-600">{card.health}</span>
-              </div>
-            ) : (
-              <div className="text-center mt-auto pt-1 border-t text-xs font-black text-violet-600" style={{ borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
-                {card.value}
-              </div>
-            )}
+            {/* Stats footer */}
+            <div
+              style={{
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#EEF2FB'}`,
+                display: 'flex',
+                justifyContent: card.type === 'creature' ? 'space-between' : 'center',
+                alignItems: 'center',
+              }}
+            >
+              {card.type === 'creature' ? (
+                <>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: '#FF5E7A' }}>⚔️ {card.attack}</span>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: '#35E0A1' }}>❤️ {card.health}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 16, fontWeight: 900, color: '#8B5CFF' }}>{card.value}</span>
+              )}
+            </div>
           </div>
+
           {/* Back */}
           <div
-            className="absolute inset-0 rounded-xl border-2 shadow-xl bg-cover bg-center bg-no-repeat"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundImage: backBg, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              borderRadius: 12,
+              border: `1.5px solid ${cardBorder}`,
+              backgroundImage: `url(${card.backImage || DEFAULT_BACK})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              boxShadow: isDark
+                ? '0 4px 16px rgba(0,0,0,0.5)'
+                : '0 4px 12px rgba(26,35,64,0.10)',
+            }}
           >
-            <div className="absolute inset-0 bg-black/30 rounded-xl" />
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)', borderRadius: 12 }} />
           </div>
         </div>
       </div>
-      <div className="text-[9px] text-center" style={{ color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.3)' }}>點擊預覽背面</div>
-      {actions && <div className="flex gap-1">{actions}</div>}
+
+      <div style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.22)' : '#9AA3BA', textAlign: 'center' }}>
+        點擊翻面
+      </div>
+
+      {/* Action buttons */}
+      {actions && <div className="flex gap-1.5">{actions}</div>}
     </div>
   );
 };
 
+// ── DeckBuilder ────────────────────────────────────────────────
 export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => {
   const isDark = theme === 'night';
-  const cards = useGameStore((state) => state.cards);
-  const decks = useGameStore((state) => state.decks);
-  const addCard = useGameStore((state) => state.addCard);
-  const updateCard = useGameStore((state) => state.updateCard);
-  const deleteCard = useGameStore((state) => state.deleteCard);
-  const updateDeck = useGameStore((state) => state.updateDeck);
-  const updateDeckInfo = useGameStore((state) => state.updateDeckInfo);
-  const createDeck = useGameStore((state) => state.createDeck);
-  const deleteDeckStore = useGameStore((state) => state.deleteDeck);
+  const cards          = useGameStore((s) => s.cards);
+  const decks          = useGameStore((s) => s.decks);
+  const addCard        = useGameStore((s) => s.addCard);
+  const updateCard     = useGameStore((s) => s.updateCard);
+  const deleteCard     = useGameStore((s) => s.deleteCard);
+  const updateDeck     = useGameStore((s) => s.updateDeck);
+  const updateDeckInfo = useGameStore((s) => s.updateDeckInfo);
+  const createDeck     = useGameStore((s) => s.createDeck);
+  const deleteDeckStore = useGameStore((s) => s.deleteDeck);
 
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [currentDeckId, setCurrentDeckId] = useState<string>('');
@@ -98,11 +162,8 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
   const currentDeck = decks[currentDeckId];
 
   const handleSaveCard = (cardData: Omit<Card, 'id'>) => {
-    if (editingCardId) {
-      updateCard(editingCardId, cardData);
-    } else {
-      addCard(cardData);
-    }
+    if (editingCardId) updateCard(editingCardId, cardData);
+    else addCard(cardData);
     setEditingCardId(null);
   };
 
@@ -117,32 +178,55 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
   };
 
   const handleDeleteDeck = () => {
-    const deckKeys = Object.keys(decks);
-    if (deckKeys.length > 1) {
-      const nextId = deckKeys.find((id) => id !== currentDeckId);
+    const keys = Object.keys(decks);
+    if (keys.length > 1) {
+      const nextId = keys.find((id) => id !== currentDeckId);
       deleteDeckStore(currentDeckId);
       if (nextId) setCurrentDeckId(nextId);
     }
   };
 
-  const panelBg = isDark ? '#0d0d1a' : '#ddd5c8';
-  const borderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.1)';
-  const cardBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
-  const inputCls = `w-full rounded-lg px-3 py-2 text-sm outline-none transition-colors border`;
-  const inputStyle = {
-    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)',
-    color: isDark ? 'white' : '#1c1208',
+  // ── Styles ──
+  const bg          = isDark ? '#070B14' : '#F3F6FB';
+  const panelBg     = isDark ? '#0E1525' : '#FFFFFF';
+  const borderCol   = isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF8';
+  const headColor   = isDark ? '#F4F7FF' : '#1A2340';
+  const mutedColor  = isDark ? '#5A6A8A'  : '#9AA3BA';
+  const cardItemBg  = isDark ? '#141D33'  : '#F8FAFF';
+  const cardItemBorder = isDark ? 'rgba(255,255,255,0.08)' : '#D9E2F2';
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    minHeight: 44,
+    padding: '0 14px',
+    background: isDark ? 'rgba(255,255,255,0.05)' : '#F3F6FB',
+    border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2'}`,
+    borderRadius: 10,
+    fontSize: 14,
+    fontFamily: 'inherit',
+    color: isDark ? '#F4F7FF' : '#1A2340',
+    outline: 'none',
+    transition: 'border-color 150ms',
   };
-  const labelColor = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)';
-  const textColor = isDark ? 'white' : '#1c1208';
-  const mutedColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)';
 
   return (
-    <div className="flex w-full h-[calc(100vh-56px)] p-6 gap-6 overflow-hidden" style={{ background: panelBg, color: textColor }}>
-      {/* ── Left: Card Form ── */}
-      <div className="w-[300px] flex flex-col shrink-0 overflow-y-auto custom-scrollbar pr-2">
-        <h2 className="text-xl font-black mb-4 text-violet-500">卡牌編輯器</h2>
+    <div
+      className="flex w-full overflow-hidden"
+      style={{ height: 'calc(100vh - 56px)', background: bg, color: headColor }}
+    >
+      {/* ── LEFT: Card Form (300px) ── */}
+      <div
+        className="shrink-0 flex flex-col overflow-y-auto custom-scrollbar"
+        style={{
+          width: 300,
+          padding: '24px 20px',
+          background: panelBg,
+          borderRight: `1px solid ${borderCol}`,
+        }}
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? 'var(--accent-purple)' : '#6B3FD4', marginBottom: 20, letterSpacing: '-0.01em' }}>
+          ✏️ 卡牌編輯器
+        </h2>
         <CardForm
           initialData={editingCardId ? cards[editingCardId] : null}
           onSubmit={handleSaveCard}
@@ -151,12 +235,26 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
         />
       </div>
 
-      {/* ── Middle: Card Library ── */}
-      <div className="flex-1 flex flex-col min-w-0 border-l border-r px-6" style={{ borderColor }}>
-        <h2 className="text-xl font-black mb-1" style={{ color: textColor }}>卡牌庫</h2>
-        <p className="text-xs mb-4" style={{ color: mutedColor }}>點擊「加入」加到目前牌組。點擊卡片預覽背面。</p>
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="flex flex-wrap gap-5">
+      {/* ── MIDDLE: Card Library ── */}
+      <div
+        className="flex-1 flex flex-col min-w-0 overflow-hidden"
+        style={{ borderRight: `1px solid ${borderCol}` }}
+      >
+        <div
+          className="shrink-0"
+          style={{
+            padding: '20px 24px 16px',
+            borderBottom: `1px solid ${borderCol}`,
+          }}
+        >
+          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4, color: headColor }}>🃏 卡牌庫</h2>
+          <p style={{ fontSize: 13, color: mutedColor }}>
+            點擊「加入」加到目前牌組・點擊卡片預覽背面
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '20px 24px' }}>
+          <div className="flex flex-wrap" style={{ gap: 20 }}>
             {Object.values(cards).map((card) => (
               <CardPreview
                 key={card.id}
@@ -165,83 +263,198 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
                 actions={
                   <>
                     <button
+                      className="btn btn-sm"
+                      style={{ background: 'var(--accent-purple-dim)', color: isDark ? 'var(--accent-purple)' : '#6B3FD4', border: `1px solid ${isDark ? 'rgba(139,92,255,0.4)' : '#B8C9E8'}` }}
                       onClick={() => handleAddToDeck(card.id)}
-                      className="text-[10px] bg-violet-500/20 hover:bg-violet-500/40 text-violet-600 px-2 py-1 rounded transition-colors"
                     >加入</button>
                     <button
+                      className="btn btn-sm"
+                      style={{ background: isDark ? 'rgba(36,216,255,0.12)' : '#EEF3FC', color: isDark ? '#24D8FF' : '#0EA5C9', border: '1px solid transparent' }}
                       onClick={() => setEditingCardId(card.id)}
-                      className="text-[10px] bg-blue-500/20 hover:bg-blue-500/40 text-blue-600 px-2 py-1 rounded transition-colors"
                     >編輯</button>
                     <button
+                      className="btn btn-sm"
+                      style={{ background: 'var(--accent-red-dim)', color: 'var(--accent-red)', border: '1px solid transparent' }}
                       onClick={() => deleteCard(card.id)}
-                      className="text-[10px] bg-red-500/20 hover:bg-red-500/40 text-red-600 px-2 py-1 rounded transition-colors"
                     >刪除</button>
                   </>
                 }
               />
             ))}
+            {Object.keys(cards).length === 0 && (
+              <div className="flex flex-col items-center justify-center w-full" style={{ padding: '60px 0', gap: 12 }}>
+                <span style={{ fontSize: 48 }}>🃏</span>
+                <p style={{ fontSize: 16, fontWeight: 600, color: mutedColor }}>尚無卡牌</p>
+                <p style={{ fontSize: 14, color: mutedColor }}>在左側表單建立第一張卡牌</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Right: Deck Builder ── */}
-      <div className="w-[280px] flex flex-col shrink-0">
-        <div className="flex flex-col gap-2 mb-4 p-4 rounded-xl border" style={{ background: cardBg, borderColor }}>
-          <div className="flex gap-2">
+      {/* ── RIGHT: Deck Builder (300px) ── */}
+      <div
+        className="shrink-0 flex flex-col overflow-hidden"
+        style={{ width: 300, padding: '24px 20px', background: panelBg }}
+      >
+        {/* Deck Selector Header */}
+        <div
+          className="rounded-xl"
+          style={{
+            padding: '16px',
+            background: isDark ? '#141D33' : '#F3F6FB',
+            border: `1.5px solid ${borderCol}`,
+            marginBottom: 16,
+          }}
+        >
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: headColor, marginBottom: 12 }}>📚 牌組管理</h2>
+
+          {/* Deck name + New button */}
+          <div className="flex gap-2" style={{ marginBottom: 10 }}>
             <input
               type="text"
               value={currentDeck?.name || ''}
               onChange={(e) => updateDeckInfo(currentDeckId, { name: e.target.value })}
-              className={inputCls}
-              style={inputStyle}
+              style={{ ...inputStyle, flex: 1 }}
               placeholder="牌組名稱"
             />
-            <button onClick={() => createDeck()} className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg font-bold text-sm transition-colors">+</button>
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ minWidth: 44, padding: '0 14px' }}
+              onClick={() => createDeck()}
+              title="建立新牌組"
+            >+</button>
           </div>
-          <div>
-            <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: labelColor }}>牌組封面圖 (背面)</label>
-            <input type="text" value={currentDeck?.backImage || ''} onChange={(e) => updateDeckInfo(currentDeckId, { backImage: e.target.value })} className={inputCls} style={inputStyle} placeholder="https://..." />
+
+          {/* Back image URL */}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: mutedColor, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              封面圖片網址
+            </label>
+            <input
+              type="text"
+              value={currentDeck?.backImage || ''}
+              onChange={(e) => updateDeckInfo(currentDeckId, { backImage: e.target.value })}
+              style={inputStyle}
+              placeholder="https://..."
+            />
           </div>
-          <div className="flex justify-between items-center mt-1">
+
+          {/* Deck picker + count + delete */}
+          <div className="flex items-center justify-between">
             <select
               value={currentDeckId}
               onChange={(e) => setCurrentDeckId(e.target.value)}
-              className="text-xs outline-none cursor-pointer bg-transparent"
-              style={{ color: mutedColor }}
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                background: 'transparent',
+                color: isDark ? 'var(--accent-purple)' : '#6B3FD4',
+                border: 'none',
+                outline: 'none',
+                cursor: 'pointer',
+                maxWidth: 140,
+              }}
             >
               {Object.values(decks).map((d) => (
-                <option key={d.id} value={d.id} style={{ background: isDark ? '#1a1a2e' : '#e0d8cc', color: isDark ? 'white' : '#1c1208' }}>{d.name}</option>
+                <option key={d.id} value={d.id} style={{ background: isDark ? '#0E1525' : '#fff', color: isDark ? '#F4F7FF' : '#1A2340' }}>
+                  {d.name}
+                </option>
               ))}
             </select>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] px-2 py-1 rounded-full font-bold border" style={{ color: mutedColor, borderColor }}>{currentDeck?.cards.length || 0} 張</span>
+              <span style={{
+                fontSize: 13,
+                fontWeight: 700,
+                padding: '3px 10px',
+                borderRadius: 99,
+                background: isDark ? 'rgba(139,92,255,0.15)' : '#EEF3FC',
+                color: isDark ? 'var(--accent-purple)' : '#6B3FD4',
+                border: `1px solid ${isDark ? 'rgba(139,92,255,0.3)' : '#D9E2F2'}`,
+              }}>
+                {currentDeck?.cards.length ?? 0} 張
+              </span>
               {Object.keys(decks).length > 1 && (
-                <button onClick={handleDeleteDeck} className="text-red-500 hover:text-red-400 text-xs transition-colors">刪除</button>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={handleDeleteDeck}
+                >刪除</button>
               )}
             </div>
           </div>
         </div>
 
-        <p className="text-xs mb-2" style={{ color: mutedColor }}>點擊卡牌從牌組移除。</p>
-        <div className="flex-1 overflow-y-auto custom-scrollbar rounded-xl border p-3" style={{ background: cardBg, borderColor }}>
-          <div className="flex flex-col gap-2">
-            {currentDeck?.cards.map((card, index) => (
-              <div
-                key={`${card.id}-${index}`}
-                onClick={() => handleRemoveFromDeck(index)}
-                className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors group border"
-                style={{ background: cardBg, borderColor }}
-              >
-                <div className="w-10 h-14 rounded-lg bg-cover bg-center shrink-0 border" style={{ backgroundImage: card.backImage ? `url(${card.backImage})` : `url(${DEFAULT_BACK})`, borderColor }} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm truncate" style={{ color: textColor }}>{card.name}</div>
-                  <div className="text-xs truncate" style={{ color: mutedColor }}>{card.type}</div>
+        {/* Hint */}
+        <p style={{ fontSize: 12, color: mutedColor, marginBottom: 10 }}>點擊卡牌從牌組移除</p>
+
+        {/* Deck card list */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar rounded-xl" style={{ background: isDark ? '#141D33' : '#F3F6FB', border: `1.5px solid ${borderCol}`, padding: 10 }}>
+          <div className="flex flex-col" style={{ gap: 6 }}>
+            {currentDeck?.cards.map((card, index) => {
+              const cfg = TYPE_CONFIG[card.type] || { label: card.type, color: '#8B5CFF', bg: '' };
+              return (
+                <div
+                  key={`${card.id}-${index}`}
+                  onClick={() => handleRemoveFromDeck(index)}
+                  className="flex items-center gap-3 rounded-xl cursor-pointer group"
+                  style={{
+                    padding: '9px 12px',
+                    background: cardItemBg,
+                    border: `1.5px solid ${cardItemBorder}`,
+                    transition: 'all 150ms ease-out',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,94,122,0.5)';
+                    (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,94,122,0.08)' : '#FFF0F3';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = cardItemBorder;
+                    (e.currentTarget as HTMLElement).style.background = cardItemBg;
+                  }}
+                >
+                  {/* Thumbnail */}
+                  <div
+                    style={{
+                      width: 36,
+                      height: 50,
+                      borderRadius: 7,
+                      backgroundImage: `url(${card.backImage || DEFAULT_BACK})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      border: `1px solid ${cardItemBorder}`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div style={{ fontSize: 14, fontWeight: 700, color: headColor, marginBottom: 3 }} className="truncate">
+                      {card.name}
+                    </div>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '1px 6px',
+                      borderRadius: 99,
+                      background: cfg.bg,
+                      color: cfg.color,
+                    }}>{cfg.label}</span>
+                  </div>
+                  {/* Remove hint */}
+                  <span
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ fontSize: 12, color: '#FF5E7A', fontWeight: 700, flexShrink: 0 }}
+                  >
+                    移除
+                  </span>
                 </div>
-                <div className="text-[10px] text-red-500 opacity-0 group-hover:opacity-80 transition-opacity shrink-0">移除</div>
-              </div>
-            ))}
+              );
+            })}
             {(!currentDeck || currentDeck.cards.length === 0) && (
-              <div className="text-center py-10 text-sm" style={{ color: mutedColor }}>牌組是空的</div>
+              <div className="flex flex-col items-center justify-center" style={{ padding: '40px 16px', gap: 8 }}>
+                <span style={{ fontSize: 32 }}>📭</span>
+                <p style={{ fontSize: 14, color: mutedColor, fontWeight: 500 }}>牌組是空的</p>
+                <p style={{ fontSize: 12, color: mutedColor }}>從卡牌庫加入卡牌</p>
+              </div>
             )}
           </div>
         </div>

@@ -7,44 +7,44 @@ const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}
 
 // ── Initial Characters ─────────────────────────────────────────
 const initialCharacters: Character[] = [
-  { id: 'hero-1', name: '戰士', role: 'warrior', emoji: '⚔️', color: '#ef4444', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 4, defense: 3 },
-  { id: 'hero-2', name: '法師', role: 'mage', emoji: '🧙', color: '#8b5cf6', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 6, defense: 1 },
-  { id: 'hero-3', name: '弓手', role: 'archer', emoji: '🏹', color: '#10b981', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 4, defense: 2 },
-  { id: 'hero-4', name: '治癒師', role: 'healer', emoji: '💊', color: '#06b6d4', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 2, defense: 2 },
-  { id: 'boss-1', name: '魔王', role: 'boss', emoji: '👾', color: '#f97316', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 8, defense: 5 },
-  { id: 'bigFour-1', name: '猴', role: 'bigFour', emoji: '🐒', color: '#91eb75ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
-  { id: 'bigFour-2', name: '雞', role: 'bigFour', emoji: '🐔', color: '#fcefe6ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
-  { id: 'bigFour-3', name: '狗', role: 'bigFour', emoji: '🐶', color: '#f2f555ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
-  { id: 'bigFour-4', name: '豬', role: 'bigFour', emoji: '🐷', color: '#d34cc8ff', hpBars: [true, true, true, true, true, true, true, true, true, true], attack: 5, defense: 3 },
+  { id: 'hero-1', name: '戰士', role: 'warrior', emoji: '⚔️', color: '#ef4444', hpBars: Array(10).fill(true), attack: 4, defense: 3 },
+  { id: 'hero-2', name: '法師', role: 'mage', emoji: '🧙', color: '#8b5cf6', hpBars: Array(10).fill(true), attack: 6, defense: 1 },
+  { id: 'hero-3', name: '弓手', role: 'archer', emoji: '🏹', color: '#10b981', hpBars: Array(10).fill(true), attack: 4, defense: 2 },
+  { id: 'hero-4', name: '治癒師', role: 'healer', emoji: '💊', color: '#06b6d4', hpBars: Array(10).fill(true), attack: 2, defense: 2 },
+  { id: 'boss-1', name: '魔王', role: 'boss', emoji: '👾', color: '#f97316', hpBars: Array(10).fill(true), attack: 8, defense: 5 },
+  { id: 'bigFour-1', name: '猴', role: 'bigFour', emoji: '🐒', color: '#91eb75', hpBars: Array(10).fill(true), attack: 5, defense: 3 },
+  { id: 'bigFour-2', name: '雞', role: 'bigFour', emoji: '🐔', color: '#fcb0a0', hpBars: Array(10).fill(true), attack: 5, defense: 3 },
+  { id: 'bigFour-3', name: '狗', role: 'bigFour', emoji: '🐶', color: '#f2f555', hpBars: Array(10).fill(true), attack: 5, defense: 3 },
+  { id: 'bigFour-4', name: '豬', role: 'bigFour', emoji: '🐷', color: '#d34cc8', hpBars: Array(10).fill(true), attack: 5, defense: 3 },
 ];
 
 // Same constants as FreeCanvas / BoardGrid
 const Z_GAP = 8, MIN_ZONE = 80;
 
 const getInitialBoardPieces = (): BoardPiece[] => {
-  const GAP = 8;
-  const canvasW = typeof window !== 'undefined' ? window.innerWidth - 226 - 286 : 768;
+  const GAP = 10;
+  const LEFT_W = 240, RIGHT_W = 320;
+  const canvasW = typeof window !== 'undefined' ? window.innerWidth - LEFT_W - RIGHT_W : 768;
   const canvasH = typeof window !== 'undefined' ? window.innerHeight - 56 : 664;
   const boardAvailW = canvasW - 2 * (MIN_ZONE + Z_GAP);
   const boardAvailH = canvasH - 60;
   const cellFromW = Math.floor((boardAvailW - 32 - GAP * 4) / 5);
-  const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 58) / 5);
-  const cell = Math.max(64, Math.min(100, Math.min(cellFromW, cellFromH)));
+  const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 68) / 5);
+  const cell = Math.max(70, Math.min(110, Math.min(cellFromW, cellFromH)));
   const boardW = cell * 5 + GAP * 4 + 32;
-  const boardH = cell * 5 + GAP * 4 + 32 + 58;
+  const boardH = cell * 5 + GAP * 4 + 32 + 68;
+  // Board centred in canvas (no asymmetry offset — matches new FreeCanvas logic)
   const boardLeft = Math.round((canvasW - boardW) / 2);
-  const boardTop = Math.max(10, Math.round((canvasH - boardH) / 2));
-  // Piece zone: symmetric right side
-  const zoneW = Math.max(MIN_ZONE, boardLeft - Z_GAP);
-  const rx = boardLeft + boardW + Z_GAP + Math.round(zoneW / 2) - 20;
+  const boardTop = Math.max(10, Math.round((canvasH - boardH) / 2)) + 40;
+  const pieceL = boardLeft + boardW + Z_GAP;
+  const rx = pieceL + Math.round((MIN_ZONE + Z_GAP) / 2) - 16 + 310;
   const step = Math.min(80, (boardH - 60) / 5);
   return [
-    { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#ef4444', x: rx, y: boardTop + 30, zIndex: 6 },
-    { id: 'piece-2', label: '法', role: 'mage', emoji: '🧙', color: '#8b5cf6', x: rx, y: boardTop + 30 + step, zIndex: 6 },
-    { id: 'piece-3', label: '弓', role: 'archer', emoji: '🏹', color: '#10b981', x: rx, y: boardTop + 30 + step * 2, zIndex: 6 },
-    { id: 'piece-4', label: '癒', role: 'healer', emoji: '💊', color: '#06b6d4', x: rx, y: boardTop + 30 + step * 3, zIndex: 6 },
-    { id: 'piece-5', label: '魔', role: 'boss', emoji: '👾', color: '#f97316', x: rx, y: boardTop + 30 + step * 4, zIndex: 6 },
-    { id: 'piece-6', label: '史萊姆', role: 'Slime', emoji: '🫠', color: '#c9c93bff', x: rx, y: boardTop + 30 + step * 5, zIndex: 6 },
+    { id: 'piece-1', label: '戰', role: 'warrior', emoji: '⚔️', color: '#FF5E7A', x: rx, y: boardTop + 30, zIndex: 6 },
+    { id: 'piece-2', label: '法', role: 'mage', emoji: '🧙', color: '#8B5CFF', x: rx, y: boardTop + 30 + step, zIndex: 6 },
+    { id: 'piece-3', label: '弓', role: 'archer', emoji: '🏹', color: '#35E0A1', x: rx, y: boardTop + 30 + step * 2, zIndex: 6 },
+    { id: 'piece-4', label: '癒', role: 'healer', emoji: '💊', color: '#24D8FF', x: rx, y: boardTop + 30 + step * 3, zIndex: 6 },
+    { id: 'piece-5', label: '魔', role: 'boss', emoji: '👾', color: '#FF9D42', x: rx, y: boardTop + 30 + step * 4, zIndex: 6 },
   ];
 };
 
@@ -74,19 +74,20 @@ const initialDecks: Record<string, Deck> = {
 };
 
 const getInitialDice = (): FreeDice[] => {
-  const GAP = 8;
-  const canvasW = typeof window !== 'undefined' ? window.innerWidth - 226 - 286 : 768;
+  const GAP = 10;
+  const LEFT_W = 240, RIGHT_W = 320;
+  const canvasW = typeof window !== 'undefined' ? window.innerWidth - LEFT_W - RIGHT_W : 768;
   const canvasH = typeof window !== 'undefined' ? window.innerHeight - 56 : 664;
   const boardAvailW = canvasW - 2 * (MIN_ZONE + Z_GAP);
   const boardAvailH = canvasH - 60;
   const cellFromW = Math.floor((boardAvailW - 32 - GAP * 4) / 5);
-  const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 58) / 5);
-  const cell = Math.max(64, Math.min(100, Math.min(cellFromW, cellFromH)));
+  const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 68) / 5);
+  const cell = Math.max(70, Math.min(110, Math.min(cellFromW, cellFromH)));
   const boardW = cell * 5 + GAP * 4 + 32;
+  // Board centred in canvas
   const boardLeft = Math.round((canvasW - boardW) / 2);
-  // Dice centered horizontally above board
-  const diceX = boardLeft + Math.round(boardW / 2) - 40;
-  return [{ id: 'dice-initial', x: diceX, y: 10, sides: 12, currentValue: 1, isRolling: false, zIndex: 8 }];
+  const diceX = boardLeft + Math.round(boardW / 2) - 340;
+  return [{ id: 'dice-initial', x: diceX, y: 100, sides: 12, currentValue: 1, isRolling: false, zIndex: 8 }];
 };
 
 const initialState: GameState = {
@@ -357,7 +358,7 @@ export const useGameStore = create<GameStore>()(
         }),
     }),
     {
-      name: 'board-game-storage-v10',
+      name: 'board-game-storage-v14',
       partialize: (state) => ({
         cards: state.cards,
         decks: state.decks,
