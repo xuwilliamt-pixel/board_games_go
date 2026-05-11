@@ -7,30 +7,30 @@ interface CharacterPanelProps { theme?: 'day' | 'night'; }
 
 // ── Role Presets (for the "Add Piece" tab) ──────────────────────
 const ROLE_PRESETS: { role: CharacterRole; name: string; emoji: string; color: string }[] = [
-  { role: 'warrior', name: '勇者',   emoji: '⚔️',  color: '#FF5E7A' },
-  { role: 'mage',    name: '法師',   emoji: '🧙',  color: '#8B5CFF' },
-  { role: 'archer',  name: '弓手',   emoji: '🏹',  color: '#35E0A1' },
-  { role: 'healer',  name: '治癒師', emoji: '💊',  color: '#24D8FF' },
-  { role: 'monster', name: '怪物',   emoji: '👹',  color: '#FF9D42' },
-  { role: 'boss',    name: '魔王',   emoji: '👾',  color: '#FF9D42' },
-  { role: 'bigFour', name: '猴',     emoji: '🐒',  color: '#91EB75' },
-  { role: 'bigFour', name: '豬',     emoji: '🐷',  color: '#D34CC8' },
-  { role: 'bigFour', name: '雞',     emoji: '🐔',  color: '#FCB0A0' },
-  { role: 'bigFour', name: '狗',     emoji: '🐶',  color: '#F2F555' },
+  { role: 'warrior', name: '勇者', emoji: '⚔️', color: '#FF5E7A' },
+  { role: 'mage', name: '法師', emoji: '🧙', color: '#8B5CFF' },
+  { role: 'archer', name: '弓手', emoji: '🏹', color: '#35E0A1' },
+  { role: 'healer', name: '治癒師', emoji: '💊', color: '#24D8FF' },
+  { role: 'monster', name: '怪物', emoji: '👹', color: '#FF9D42' },
+  { role: 'boss', name: '魔王', emoji: '👾', color: '#FF9D42' },
+  { role: 'bigFour', name: '猴', emoji: '🐒', color: '#91EB75' },
+  { role: 'bigFour', name: '豬', emoji: '🐷', color: '#D34CC8' },
+  { role: 'bigFour', name: '雞', emoji: '🐔', color: '#FCB0A0' },
+  { role: 'bigFour', name: '狗', emoji: '🐶', color: '#F2F555' },
 ];
 
 // ── Role label map ──────────────────────────────────────────────
 function getRoleLabel(role: CharacterRole): string {
   switch (role) {
     case 'warrior': return '勇者';
-    case 'mage':    return '法師';
-    case 'archer':  return '弓手';
-    case 'healer':  return '治癒師';
-    case 'boss':    return '魔王';
+    case 'mage': return '法師';
+    case 'archer': return '弓手';
+    case 'healer': return '治癒師';
+    case 'boss': return '魔王';
     case 'monster': return '怪物';
-    case 'Slime':   return '史萊姆';
+    case 'Slime': return '史萊姆';
     case 'bigFour': return '四大天王';
-    default:        return role;
+    default: return role;
   }
 }
 
@@ -59,23 +59,22 @@ const HPSeg: React.FC<HPSegProps> = ({ filled, color, onClick }) => (
 // ── Character Card ──────────────────────────────────────────────
 interface CharCardProps { character: Character; theme: 'day' | 'night'; }
 const CharCard: React.FC<CharCardProps> = ({ character, theme }) => {
-  const toggleHPBar  = useGameStore((s) => s.toggleHPBar);
-  const updateStat   = useGameStore((s) => s.updateCharacterStat);
-  const resetHP      = useGameStore((s) => s.resetCharacterHP);
+  const toggleHPBar = useGameStore((s) => s.toggleHPBar);
+  const updateStat = useGameStore((s) => s.updateCharacterStat);
+  const resetHP = useGameStore((s) => s.resetCharacterHP);
 
-  const isDark      = theme === 'night';
-  const filled      = character.hpBars.filter(Boolean).length;
-  const total       = character.hpBars.length;
-  const hpPct       = filled / total;
-  const hpColor     = hpPct > 0.5 ? '#35E0A1' : hpPct > 0.25 ? '#FF9D42' : '#FF5E7A';
+  const isDark = theme === 'night';
+  const filled = character.hpBars.filter(Boolean).length;
+  const total = character.hpBars.length;
+  const hpPct = filled / total;
+  const hpColor = hpPct > 0.5 ? '#35E0A1' : hpPct > 0.25 ? '#FF9D42' : '#FF5E7A';
 
-  const cardBg      = isDark ? `${character.color}14` : `${character.color}12`;
-  const cardBorder  = isDark ? `${character.color}35` : `${character.color}30`;
+  const cardBg = isDark ? `${character.color}14` : `${character.color}12`;
+  const cardBorder = isDark ? `${character.color}35` : `${character.color}30`;
 
-  const statBg      = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(26,35,64,0.05)';
-  const statLabel   = isDark ? 'rgba(255,255,255,0.45)' : '#9AA3BA';
-  const statVal     = isDark ? '#F4F7FF' : '#1A2340';
-  const btnColor    = isDark ? 'rgba(255,255,255,0.40)' : '#9AA3BA';
+  const statBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(26,35,64,0.05)';
+  const statLabel = isDark ? 'rgba(255,255,255,0.45)' : '#9AA3BA';
+  const btnColor = isDark ? 'rgba(255,255,255,0.40)' : '#9AA3BA';
 
   return (
     <div
@@ -148,7 +147,7 @@ const CharCard: React.FC<CharCardProps> = ({ character, theme }) => {
       {/* ── ATK / DEF ── */}
       <div className="flex gap-2">
         {([
-          { label: 'ATK', stat: 'attack'  as const, val: character.attack,  icon: '⚔️', color: '#FF5E7A' },
+          { label: 'ATK', stat: 'attack' as const, val: character.attack, icon: '⚔️', color: '#FF5E7A' },
           { label: 'DEF', stat: 'defense' as const, val: character.defense, icon: '🛡️', color: '#24D8FF' },
         ] as const).map(({ label, stat, val, icon, color }) => (
           <div
@@ -258,34 +257,34 @@ const SectionLabel: React.FC<{ children: React.ReactNode; isDark: boolean }> = (
 
 // ── Main Panel ──────────────────────────────────────────────────
 export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' }) => {
-  const characters  = useGameStore((s) => s.characters);
+  const characters = useGameStore((s) => s.characters);
   const addBoardPiece = useGameStore((s) => s.addBoardPiece);
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'chars' | 'pieces'>('chars');
   const isDark = theme === 'night';
 
-  const panelBg   = isDark ? 'rgba(7, 11, 20, 0.94)'  : 'rgba(255, 255, 255, 0.95)';
-  const borderCol = isDark ? 'var(--border-subtle)'    : '#E8EDF8';
-  const toggleBg  = isDark ? 'rgba(14, 21, 37, 0.95)'  : 'rgba(240, 244, 252, 0.95)';
+  const panelBg = isDark ? 'rgba(7, 11, 20, 0.94)' : 'rgba(255, 255, 255, 0.95)';
+  const borderCol = isDark ? 'var(--border-subtle)' : '#E8EDF8';
+  const toggleBg = isDark ? 'rgba(14, 21, 37, 0.95)' : 'rgba(240, 244, 252, 0.95)';
 
   const handleAddPiece = (preset: typeof ROLE_PRESETS[0]) => {
     const GAP = 10;
     const canvasEl = document.querySelector('[data-canvas]') as HTMLElement | null;
-    const canvasW = canvasEl ? canvasEl.clientWidth  : Math.max(400, window.innerWidth  - 240 - 320);
+    const canvasW = canvasEl ? canvasEl.clientWidth : Math.max(400, window.innerWidth - 240 - 320);
     const canvasH = canvasEl ? canvasEl.clientHeight : Math.max(400, window.innerHeight - 56);
-    const maxDim  = Math.min(canvasW - 64, canvasH - 60);
-    const cell    = Math.max(70, Math.min(110, Math.floor((maxDim - GAP * 4) / 5)));
-    const boardW  = cell * 5 + GAP * 4 + 32;
+    const maxDim = Math.min(canvasW - 64, canvasH - 60);
+    const cell = Math.max(70, Math.min(110, Math.floor((maxDim - GAP * 4) / 5)));
+    const boardW = cell * 5 + GAP * 4 + 32;
     // Board centred in canvas (no asymmetry)
-    const boardLeft   = Math.round((canvasW - boardW) / 2);
-    const pieceZoneL  = boardLeft + boardW + 10;
+    const boardLeft = Math.round((canvasW - boardW) / 2);
+    const pieceZoneL = boardLeft + boardW + 10;
     const x = pieceZoneL + 16 + Math.random() * 24;
     const y = 60 + Math.random() * (canvasH - 160);
     addBoardPiece({ label: preset.name.slice(0, 1), role: preset.role, emoji: preset.emoji, color: preset.color, x, y });
   };
 
-  const heroes   = characters.filter((c) => !['boss', 'monster', 'bigFour', 'Slime'].includes(c.role));
-  const bigFour  = characters.filter((c) => c.role === 'bigFour');
+  const heroes = characters.filter((c) => !['boss', 'monster', 'bigFour', 'Slime'].includes(c.role));
+  const bigFour = characters.filter((c) => c.role === 'bigFour');
   const villains = characters.filter((c) => ['boss', 'monster', 'Slime'].includes(c.role));
 
   return (
@@ -312,7 +311,7 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({ theme = 'night' 
           style={{ borderColor: borderCol, height: 52 }}
         >
           {([
-            { key: 'chars',  label: '👥 角色狀態' },
+            { key: 'chars', label: '👥 角色狀態' },
             { key: 'pieces', label: '♟️ 新增棋子' },
           ] as const).map(({ key, label }) => (
             <button
