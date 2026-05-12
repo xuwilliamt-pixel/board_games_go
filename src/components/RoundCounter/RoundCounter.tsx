@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useGameStore } from '../../store/gameStore';
 
 interface RoundCounterProps {
   theme: 'day' | 'night';
 }
 
 export const RoundCounter: React.FC<RoundCounterProps> = ({ theme }) => {
-  const [round, setRound] = useState(1);
+  // ── 改用 gameStore，這樣才會同步給所有人 ──────────────────────
+  const round = useGameStore((s) => s.round);
+  const setRound = useGameStore((s) => s.setRound);
+
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState('1');
   const [bump, setBump] = useState<'up' | 'down' | null>(null);
@@ -13,28 +17,26 @@ export const RoundCounter: React.FC<RoundCounterProps> = ({ theme }) => {
 
   const isDark = theme === 'night';
 
-  // Trigger bump animation
   const triggerBump = (dir: 'up' | 'down') => {
     setBump(dir);
     setTimeout(() => setBump(null), 320);
   };
 
   const increment = useCallback(() => {
-    setRound((r) => { triggerBump('up'); return r + 1; });
-  }, []);
+    triggerBump('up');
+    setRound(round + 1);
+  }, [round, setRound]);
 
   const decrement = useCallback(() => {
-    setRound((r) => {
-      if (r <= 1) return 1;
-      triggerBump('down');
-      return r - 1;
-    });
-  }, []);
+    if (round <= 1) return;
+    triggerBump('down');
+    setRound(round - 1);
+  }, [round, setRound]);
 
   const reset = useCallback(() => {
-    setRound(1);
     triggerBump('down');
-  }, []);
+    setRound(1);
+  }, [setRound]);
 
   const startEdit = () => {
     setInputVal(String(round));
@@ -73,66 +75,39 @@ export const RoundCounter: React.FC<RoundCounterProps> = ({ theme }) => {
   const resetColor = isDark ? 'rgba(255,255,255,0.25)' : '#B0BAD0';
 
   const numStyle: React.CSSProperties = {
-    fontSize: 40,
-    fontWeight: 900,
-    letterSpacing: '-0.04em',
-    lineHeight: 1,
-    color: numColor,
-    minWidth: 56,
-    textAlign: 'center',
-    cursor: 'pointer',
-    userSelect: 'none',
+    fontSize: 40, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1,
+    color: numColor, minWidth: 56, textAlign: 'center',
+    cursor: 'pointer', userSelect: 'none',
     transition: 'transform 160ms cubic-bezier(.34,1.56,.64,1), color 200ms',
     transform: bump === 'up'
       ? 'translateY(-4px) scale(1.12)'
-      : bump === 'down'
-        ? 'translateY(2px) scale(0.92)'
-        : 'translateY(-8px) scale(1)',
+      : bump === 'down' ? 'translateY(2px) scale(0.92)' : 'translateY(-8px) scale(1)',
     textShadow: isDark
       ? `0 0 18px ${numColor}90, 0 0 40px ${numColor}40`
       : `0 0 12px ${numColor}50`,
   };
 
-  const ctrlBtn = (
-    label: string,
-    onClick: () => void,
-    hoverBg: string,
-    hoverColor: string,
-    title?: string,
-  ) => (
+  const ctrlBtn = (label: string, onClick: () => void, hoverBg: string, hoverColor: string, title?: string) => (
     <button
       onClick={onClick}
       title={title}
       style={{
-        minWidth: 36,
-        minHeight: 36,
-        borderRadius: 9,
-        border: `1.5px solid ${btnBorder}`,
-        background: btnBg,
-        color: btnColor,
-        fontSize: 16,
-        fontWeight: 800,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 140ms ease-out',
-        flexShrink: 0,
+        minWidth: 36, minHeight: 36, borderRadius: 9,
+        border: `1.5px solid ${btnBorder}`, background: btnBg, color: btnColor,
+        fontSize: 16, fontWeight: 800, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all 140ms ease-out', flexShrink: 0,
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.background = hoverBg;
-        el.style.color = hoverColor;
-        el.style.borderColor = hoverColor;
-        el.style.transform = 'translateY(-2px)';
+        el.style.background = hoverBg; el.style.color = hoverColor;
+        el.style.borderColor = hoverColor; el.style.transform = 'translateY(-2px)';
         el.style.boxShadow = `0 4px 12px ${hoverColor}50`;
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLElement;
-        el.style.background = btnBg;
-        el.style.color = btnColor;
-        el.style.borderColor = btnBorder;
-        el.style.transform = 'translateY(0)';
+        el.style.background = btnBg; el.style.color = btnColor;
+        el.style.borderColor = btnBorder; el.style.transform = 'translateY(0)';
         el.style.boxShadow = 'none';
       }}
     >
@@ -143,55 +118,31 @@ export const RoundCounter: React.FC<RoundCounterProps> = ({ theme }) => {
   return (
     <div
       style={{
-        position: 'fixed',
-        top: 40,           // inside navbar (NAVBAR_H = 56px)
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 60,       // above panels (z-40) but below modals (z-9999)
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
+        position: 'fixed', top: 40, left: '50%',
+        transform: 'translateX(-50%)', zIndex: 60,
+        display: 'flex', alignItems: 'center', gap: 8,
         padding: '5px 14px 5px 10px',
-        background: panelBg,
-        border: `1.5px solid ${panelBorder}`,
-        borderRadius: 16,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        boxShadow: panelGlow,
-        animation: 'floatCounter 4s ease-in-out infinite',
+        background: panelBg, border: `1.5px solid ${panelBorder}`,
+        borderRadius: 16, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: panelGlow, animation: 'floatCounter 4s ease-in-out infinite',
       }}
     >
-      {/* Decrement */}
       {ctrlBtn('−', decrement, isDark ? 'rgba(255,94,122,0.22)' : '#FFF0F3', isDark ? '#FF5E7A' : '#DC3060', '−1 回合')}
 
-      {/* Centre: label + number */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '0 4px' }}>
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: labelColor }}>
           ROUND
         </span>
-
-        {/* Number or input */}
         {editing ? (
           <input
-            ref={inputRef}
-            value={inputVal}
+            ref={inputRef} value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={handleKey}
-            type="number"
-            min={1}
+            onBlur={commitEdit} onKeyDown={handleKey}
+            type="number" min={1}
             style={{
-              width: 64,
-              fontSize: 36,
-              fontWeight: 900,
-              letterSpacing: '-0.04em',
-              textAlign: 'center',
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: numColor,
-              lineHeight: 1,
-              fontFamily: 'inherit',
+              width: 64, fontSize: 36, fontWeight: 900, letterSpacing: '-0.04em',
+              textAlign: 'center', background: 'transparent', border: 'none',
+              outline: 'none', color: numColor, lineHeight: 1, fontFamily: 'inherit',
             }}
           />
         ) : (
@@ -201,29 +152,18 @@ export const RoundCounter: React.FC<RoundCounterProps> = ({ theme }) => {
         )}
       </div>
 
-      {/* Increment */}
       {ctrlBtn('+', increment, isDark ? 'rgba(53,224,161,0.22)' : '#EDFAF4', isDark ? '#35E0A1' : '#18A772', '+1 回合')}
 
-      {/* Divider */}
       <div style={{ width: 1, height: 28, background: isDark ? 'rgba(255,255,255,0.10)' : '#E8EDF8', marginLeft: 2 }} />
 
-      {/* Reset */}
       <button
-        onClick={reset}
-        title="重置回合數至 1"
+        onClick={reset} title="重置回合數至 1"
         style={{
-          minHeight: 28,
-          padding: '0 10px',
-          borderRadius: 8,
+          minHeight: 28, padding: '0 10px', borderRadius: 8,
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF8'}`,
-          background: 'transparent',
-          color: resetColor,
-          fontSize: 12,
-          fontWeight: 700,
-          cursor: 'pointer',
-          letterSpacing: '0.04em',
-          transition: 'all 140ms ease-out',
-          whiteSpace: 'nowrap',
+          background: 'transparent', color: resetColor,
+          fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          letterSpacing: '0.04em', transition: 'all 140ms ease-out', whiteSpace: 'nowrap',
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget as HTMLElement;
@@ -241,11 +181,10 @@ export const RoundCounter: React.FC<RoundCounterProps> = ({ theme }) => {
         重置
       </button>
 
-      {/* Float animation */}
       <style>{`
         @keyframes floatCounter {
-          0%,100% { transform: translateX(-50%) translateY(0px);   }
-          50%      { transform: translateX(-50%) translateY(-2px);  }
+          0%,100% { transform: translateX(-50%) translateY(0px);  }
+          50%      { transform: translateX(-50%) translateY(-2px); }
         }
       `}</style>
     </div>

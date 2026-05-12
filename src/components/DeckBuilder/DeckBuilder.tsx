@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { CardForm } from './CardForm';
 import type { Card } from '../../types/game';
+import defaultCardBack from '../../assets/DigitalMonster.jpg';
 
-const DEFAULT_BACK = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
+const DEFAULT_BACK = defaultCardBack;
 
 interface DeckBuilderProps { theme?: 'day' | 'night'; }
 
 // ── Type badge config ──────────────────────────────────────────
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   creature: { label: '生物', color: '#35E0A1', bg: 'rgba(53,224,161,0.15)' },
-  spell:    { label: '法術', color: '#24D8FF', bg: 'rgba(36,216,255,0.12)' },
-  item:     { label: '道具', color: '#FF9D42', bg: 'rgba(255,157,66,0.15)' },
-  hero:     { label: '英雄', color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' },
+  spell: { label: '法術', color: '#24D8FF', bg: 'rgba(36,216,255,0.12)' },
+  item: { label: '道具', color: '#FF9D42', bg: 'rgba(255,157,66,0.15)' },
+  hero: { label: '英雄', color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' },
 };
 
 // ── Card Preview ───────────────────────────────────────────────
@@ -25,9 +26,9 @@ const CardPreview: React.FC<{
   const isDark = theme === 'night';
   const cfg = TYPE_CONFIG[card.type] || { label: card.type, color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' };
 
-  const cardFrontBg  = isDark ? '#18243D' : '#FFFFFF';
-  const cardBorder   = isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2';
-  const descColor    = isDark ? 'rgba(255,255,255,0.55)' : '#55607A';
+  const cardFrontBg = isDark ? '#18243D' : '#FFFFFF';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2';
+  const descColor = isDark ? 'rgba(255,255,255,0.55)' : '#55607A';
 
   return (
     <div className="flex flex-col items-center" style={{ gap: 8 }}>
@@ -140,14 +141,14 @@ const CardPreview: React.FC<{
 // ── DeckBuilder ────────────────────────────────────────────────
 export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => {
   const isDark = theme === 'night';
-  const cards          = useGameStore((s) => s.cards);
-  const decks          = useGameStore((s) => s.decks);
-  const addCard        = useGameStore((s) => s.addCard);
-  const updateCard     = useGameStore((s) => s.updateCard);
-  const deleteCard     = useGameStore((s) => s.deleteCard);
-  const updateDeck     = useGameStore((s) => s.updateDeck);
+  const cards = useGameStore((s) => s.cards);
+  const decks = useGameStore((s) => s.decks);
+  const addCard = useGameStore((s) => s.addCard);
+  const updateCard = useGameStore((s) => s.updateCard);
+  const deleteCard = useGameStore((s) => s.deleteCard);
+  const updateDeck = useGameStore((s) => s.updateDeck);
   const updateDeckInfo = useGameStore((s) => s.updateDeckInfo);
-  const createDeck     = useGameStore((s) => s.createDeck);
+  const createDeck = useGameStore((s) => s.createDeck);
   const deleteDeckStore = useGameStore((s) => s.deleteDeck);
 
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -187,12 +188,12 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
   };
 
   // ── Styles ──
-  const bg          = isDark ? '#070B14' : '#F3F6FB';
-  const panelBg     = isDark ? '#0E1525' : '#FFFFFF';
-  const borderCol   = isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF8';
-  const headColor   = isDark ? '#F4F7FF' : '#1A2340';
-  const mutedColor  = isDark ? '#5A6A8A'  : '#9AA3BA';
-  const cardItemBg  = isDark ? '#141D33'  : '#F8FAFF';
+  const bg = isDark ? '#070B14' : '#F3F6FB';
+  const panelBg = isDark ? '#0E1525' : '#FFFFFF';
+  const borderCol = isDark ? 'rgba(255,255,255,0.08)' : '#E8EDF8';
+  const headColor = isDark ? '#F4F7FF' : '#1A2340';
+  const mutedColor = isDark ? '#5A6A8A' : '#9AA3BA';
+  const cardItemBg = isDark ? '#141D33' : '#F8FAFF';
   const cardItemBorder = isDark ? 'rgba(255,255,255,0.08)' : '#D9E2F2';
 
   const inputStyle: React.CSSProperties = {

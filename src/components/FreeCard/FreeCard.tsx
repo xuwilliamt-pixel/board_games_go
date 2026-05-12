@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { FreeCard as FreeCardType } from '../../types/game';
 import { useGameStore } from '../../store/gameStore';
 
+const DEFAULT_BACK = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
+
 interface ContextMenuState {
   x: number;
   y: number;
@@ -19,8 +21,10 @@ interface EditState {
   type: string;
 }
 
-export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night' }> = ({ card, theme = 'night' }) => {
+// ← 新增 deckBackImage prop
+export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; deckBackImage?: string }> = ({ card, theme = 'night', deckBackImage }) => {
   const moveCard = useGameStore((s) => s.moveCard);
+  const moveCardEnd = useGameStore((s) => s.moveCardEnd);
   const flipCard = useGameStore((s) => s.flipCard);
   const rotateCard = useGameStore((s) => s.rotateCard);
   const removeCard = useGameStore((s) => s.removeCard);
@@ -63,19 +67,20 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night' }>
       };
       const onUp = () => {
         dragging.current = false;
+        if (hasMoved.current) moveCardEnd(card.instanceId);
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [card, bringToFront, moveCard]
+    [card, bringToFront, moveCard, moveCardEnd]
   );
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (hasMoved.current) return; // Don't flip if dragged
+      if (hasMoved.current) return;
       flipCard(card.instanceId);
     },
     [card.instanceId, flipCard]
@@ -103,9 +108,9 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night' }>
     setIsEditing(false);
   };
 
-  const backBg = card.backImage
-    ? `url(${card.backImage})`
-    : 'url(https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop)';
+  // ← 優先用牌組封面，其次用卡片自己存的，最後用預設
+  const backSrc = deckBackImage ?? card.backImage ?? DEFAULT_BACK;
+  const backBg = `url(${backSrc})`;
 
   return (
     <>

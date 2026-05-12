@@ -7,6 +7,7 @@ const DICE_SIDES: FreeDiceType['sides'][] = [4, 6, 8, 10, 12, 20];
 
 export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
   const moveDice = useGameStore((s) => s.moveDice);
+  const moveDiceEnd = useGameStore((s) => s.moveDiceEnd);
   const rollDice = useGameStore((s) => s.rollDice);
   const changeDiceSides = useGameStore((s) => s.changeDiceSides);
   const bringDiceToFront = useGameStore((s) => s.bringDiceToFront);
@@ -35,17 +36,20 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
         const ddx = me.clientX - dragStart.current.mx;
         const ddy = me.clientY - dragStart.current.my;
         if (Math.abs(ddx) > 3 || Math.abs(ddy) > 3) hasMoved.current = true;
+        // 本地即時更新，不寫 Firebase
         moveDice(dice.id, dragStart.current.dx + ddx, dragStart.current.dy + ddy);
       };
       const onUp = () => {
         dragging.current = false;
+        // 放開才同步給對方
+        if (hasMoved.current) moveDiceEnd(dice.id);
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [dice, bringDiceToFront, moveDice]
+    [dice, bringDiceToFront, moveDice, moveDiceEnd]
   );
 
   const handleClick = useCallback(
@@ -54,7 +58,6 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
       if (hasMoved.current || isRolling) return;
 
       setIsRolling(true);
-      // Shuffle display value rapidly for visual effect
       let count = 0;
       shuffleRef.current = setInterval(() => {
         setDisplayValue(Math.floor(Math.random() * dice.sides) + 1);
@@ -62,21 +65,15 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
         if (count > 14) {
           if (shuffleRef.current) clearInterval(shuffleRef.current);
           rollDice(dice.id);
-          // Get the final value after rollDice updates the store
-          setTimeout(() => {
-            setIsRolling(false);
-          }, 150);
+          setTimeout(() => { setIsRolling(false); }, 150);
         }
       }, 60);
     },
     [dice.id, dice.sides, isRolling, rollDice]
   );
 
-  // Sync display value with store when not rolling
   React.useEffect(() => {
-    if (!isRolling) {
-      setDisplayValue(dice.currentValue);
-    }
+    if (!isRolling) setDisplayValue(dice.currentValue);
   }, [dice.currentValue, isRolling]);
 
   const handleRightClick = useCallback((e: React.MouseEvent) => {
@@ -85,12 +82,11 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
     setShowSidesMenu((v) => !v);
   }, []);
 
-  // Dice shape path for each type
   const getDiceShape = () => {
     switch (dice.sides) {
-      case 4:  return <polygon points="50,5 95,88 5,88" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
-      case 6:  return <rect x="8" y="8" width="84" height="84" rx="14" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
-      case 8:  return <polygon points="50,5 95,50 50,95 5,50" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
+      case 4: return <polygon points="50,5 95,88 5,88" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
+      case 6: return <rect x="8" y="8" width="84" height="84" rx="14" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
+      case 8: return <polygon points="50,5 95,50 50,95 5,50" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
       case 10: return <polygon points="50,5 95,35 80,90 20,90 5,35" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
       case 12: return <polygon points="50,4 93,33 78,82 22,82 7,33" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
       case 20: return <polygon points="50,5 96,85 4,85" fill="url(#dg)" filter="url(#ds)" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />;
@@ -112,20 +108,10 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
           rotateY: [0, 180, 540, 900],
           rotateZ: [0, -90, 200, 0],
           scale: [1, 1.3, 0.85, 1],
-        } : {
-          rotateX: 0,
-          rotateY: 0,
-          rotateZ: 0,
-          scale: 1,
-        }}
-        transition={isRolling ? {
-          duration: 0.9,
-          ease: [0.22, 1, 0.36, 1],
-        } : {
-          type: 'spring',
-          stiffness: 400,
-          damping: 20,
-        }}
+        } : { rotateX: 0, rotateY: 0, rotateZ: 0, scale: 1 }}
+        transition={isRolling
+          ? { duration: 0.9, ease: [0.22, 1, 0.36, 1] }
+          : { type: 'spring', stiffness: 400, damping: 20 }}
         style={{ perspective: '400px' }}
         whileHover={!isRolling ? { scale: 1.1 } : {}}
       >
@@ -147,7 +133,7 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
             fontSize={dice.sides >= 20 ? "28" : "34"}
             fontWeight="900"
             fill="white"
-            style={{ fontFamily: 'monospace', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
+            style={{ fontFamily: 'monospace' }}
           >
             {displayValue}
           </text>
@@ -156,7 +142,6 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
           </text>
         </svg>
 
-        {/* Glow ring when rolling */}
         {isRolling && (
           <div className="absolute inset-0 rounded-full pointer-events-none">
             <div className="absolute inset-[-8px] rounded-full bg-violet-400/20 animate-ping" />
@@ -166,7 +151,6 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
 
       <div className="text-center text-[9px] text-white/25 mt-0.5 select-none">點擊搖骰 · 右鍵換面數</div>
 
-      {/* Sides picker */}
       <AnimatePresence>
         {showSidesMenu && (
           <motion.div

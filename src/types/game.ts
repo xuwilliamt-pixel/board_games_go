@@ -58,8 +58,8 @@ export interface Character {
   name: string;
   role: CharacterRole;
   emoji: string;
-  color: string;          // accent color (hex)
-  hpBars: boolean[];      // each entry = one HP bar; true=filled, false=empty
+  color: string;
+  hpBars: boolean[];
   attack: number;
   defense: number;
 }
@@ -71,7 +71,7 @@ export interface BoardPiece {
   role: CharacterRole;
   emoji: string;
   color: string;
-  x: number;      // canvas-relative pixel position
+  x: number;
   y: number;
   zIndex: number;
 }
@@ -85,4 +85,5 @@ export interface GameState {
   topZIndex: number;
   characters: Character[];
   boardPieces: BoardPiece[];
+  round: number;          // ← 新增，回合數同步用
 }

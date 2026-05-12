@@ -1,8 +1,19 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { ref, onValue, update, off } from 'firebase/database';
+import { db } from '../firebase';
 import type { GameState, Card, Deck, FreeCard, FreeDice, DiceResult, Character, BoardPiece } from '../types/game';
+import defaultCardBack from '../assets/DigitalMonster.jpg';
 
-const DEFAULT_BACK_IMAGE = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
+// ── 房間 ID ────────────────────────────────────────────────────
+const getRoomId = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('room') || 'default-room';
+};
+
+export const ROOM_ID = getRoomId();
+
+
+const DEFAULT_BACK_IMAGE = defaultCardBack;
 const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
 // ── Initial Characters ─────────────────────────────────────────
@@ -18,7 +29,6 @@ const initialCharacters: Character[] = [
   { id: 'bigFour-4', name: '豬', role: 'bigFour', emoji: '🐷', color: '#d34cc8', hpBars: Array(10).fill(true), attack: 5, defense: 3 },
 ];
 
-// Same constants as FreeCanvas / BoardGrid
 const Z_GAP = 8, MIN_ZONE = 80;
 
 const getInitialBoardPieces = (): BoardPiece[] => {
@@ -33,7 +43,6 @@ const getInitialBoardPieces = (): BoardPiece[] => {
   const cell = Math.max(70, Math.min(110, Math.min(cellFromW, cellFromH)));
   const boardW = cell * 5 + GAP * 4 + 32;
   const boardH = cell * 5 + GAP * 4 + 32 + 68;
-  // Board centred in canvas (no asymmetry offset — matches new FreeCanvas logic)
   const boardLeft = Math.round((canvasW - boardW) / 2);
   const boardTop = Math.max(10, Math.round((canvasH - boardH) / 2)) + 40;
   const pieceL = boardLeft + boardW + Z_GAP;
@@ -48,7 +57,6 @@ const getInitialBoardPieces = (): BoardPiece[] => {
   ];
 };
 
-// ── Mock Cards ─────────────────────────────────────────────────
 const mockCards: Record<string, Card> = {
   'card-1': { id: 'card-1', name: '火球術', description: '造成 3 點傷害', isFlipped: false, type: 'spell', value: 3 },
   'card-2': { id: 'card-2', name: '哥布林', description: '一個弱小的生物', isFlipped: false, type: 'creature', attack: 1, health: 2 },
@@ -84,7 +92,6 @@ const getInitialDice = (): FreeDice[] => {
   const cellFromH = Math.floor((boardAvailH - 32 - GAP * 4 - 68) / 5);
   const cell = Math.max(70, Math.min(110, Math.min(cellFromW, cellFromH)));
   const boardW = cell * 5 + GAP * 4 + 32;
-  // Board centred in canvas
   const boardLeft = Math.round((canvasW - boardW) / 2);
   const diceX = boardLeft + Math.round(boardW / 2) - 340;
   return [{ id: 'dice-initial', x: diceX, y: 100, sides: 12, currentValue: 1, isRolling: false, zIndex: 8 }];
@@ -99,14 +106,34 @@ const initialState: GameState = {
   topZIndex: 10,
   characters: initialCharacters,
   boardPieces: getInitialBoardPieces(),
+  round: 1, // ← 新增
 };
+
+type SyncableState = Pick<GameState, 'freeCards' | 'freeDice' | 'diceHistory' | 'topZIndex' | 'characters' | 'boardPieces' | 'decks' | 'round' | 'cards'>;
+
+// ── Firebase 寫入 ──────────────────────────────────────────────
+const syncToFirebase = (patch: Partial<SyncableState>) => {
+  const gameRef = ref(db, `rooms/${ROOM_ID}`);
+  const clean = JSON.parse(JSON.stringify(patch));
+  update(gameRef, clean);
+};
+
+// ── 節流工具：拖曳期間本地即時更新，放開滑鼠才寫 Firebase ──────
+// 用法：在 mouseup 時呼叫 syncToFirebase，mousemove 只呼叫 set()
+// 這樣對方每次放開後就會同步，避免每幀都寫 Firebase 造成衝突
 
 // ── Store Interface ────────────────────────────────────────────
 interface GameStore extends GameState {
+  isConnected: boolean;
+  round: number;
+  setRound: (n: number) => void;
+  initSync: () => () => void;
+
   // Canvas
   placeCardOnCanvas: (templateId: string, x: number, y: number) => void;
   placeCardFromDeck: (deckId: string, x: number, y: number) => void;
   moveCard: (instanceId: string, x: number, y: number) => void;
+  moveCardEnd: (instanceId: string) => void; // ← 拖曳結束後同步
   flipCard: (instanceId: string) => void;
   rotateCard: (instanceId: string, delta: number) => void;
   removeCard: (instanceId: string) => void;
@@ -116,6 +143,7 @@ interface GameStore extends GameState {
   // Dice
   addDice: (x: number, y: number, sides?: FreeDice['sides']) => void;
   moveDice: (diceId: string, x: number, y: number) => void;
+  moveDiceEnd: (diceId: string) => void; // ← 拖曳結束後同步
   rollDice: (diceId: string) => void;
   changeDiceSides: (diceId: string, sides: FreeDice['sides']) => void;
   removeDice: (diceId: string) => void;
@@ -129,6 +157,7 @@ interface GameStore extends GameState {
   // Board Pieces
   addBoardPiece: (piece: Omit<BoardPiece, 'id' | 'zIndex'>) => void;
   moveBoardPiece: (pieceId: string, x: number, y: number) => void;
+  moveBoardPieceEnd: (pieceId: string) => void; // ← 拖曳結束後同步
   removeBoardPiece: (pieceId: string) => void;
   updateBoardPieceLabel: (pieceId: string, label: string) => void;
   bringPieceToFront: (pieceId: string) => void;
@@ -144,230 +173,324 @@ interface GameStore extends GameState {
   clearTable: () => void;
 }
 
-export const useGameStore = create<GameStore>()(
-  persist(
-    (set) => ({
-      ...initialState,
+export const useGameStore = create<GameStore>()((set, get) => ({
+  ...initialState,
+  isConnected: false,
 
-      // ── Canvas ──────────────────────────────────────────────────
-      placeCardOnCanvas: (templateId, x, y) =>
-        set((state) => {
-          const template = state.cards[templateId];
-          if (!template) return state;
-          const newZ = state.topZIndex + 1;
-          const newCard: FreeCard = { ...template, instanceId: `inst_${genId()}`, x, y, rotation: 0, zIndex: newZ };
-          return { freeCards: [...state.freeCards, newCard], topZIndex: newZ };
-        }),
+  // ── Firebase 同步初始化 ──────────────────────────────────────
+  initSync: () => {
+    const gameRef = ref(db, `rooms/${ROOM_ID}`);
 
-      placeCardFromDeck: (deckId, x, y) =>
-        set((state) => {
-          const deck = state.decks[deckId];
-          if (!deck || deck.cards.length === 0) return state;
-          const idx = Math.floor(Math.random() * deck.cards.length);
-          const template = deck.cards[idx];
-          const newDeckCards = deck.cards.filter((_, i) => i !== idx);
-          const newZ = state.topZIndex + 1;
-          const newCard: FreeCard = {
-            ...template, instanceId: `inst_${genId()}`,
-            sourceDeckId: deckId, sourceCardId: template.id,
-            x, y, rotation: 0, isFlipped: true, zIndex: newZ,
-          };
-          return { decks: { ...state.decks, [deckId]: { ...deck, cards: newDeckCards } }, freeCards: [...state.freeCards, newCard], topZIndex: newZ };
-        }),
+    const unsubscribe = onValue(gameRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        set({
+          freeCards: data.freeCards ?? [],
+          freeDice: data.freeDice ?? getInitialDice(),
+          diceHistory: data.diceHistory ?? [],
+          topZIndex: data.topZIndex ?? 10,
+          characters: data.characters ?? initialCharacters,
+          boardPieces: data.boardPieces ?? getInitialBoardPieces(),
+          decks: data.decks ?? initialDecks,
+          cards: data.cards ?? mockCards,
+          round: data.round ?? 1,
+          isConnected: true,
+        });
+      } else {
+        const state = get();
+        syncToFirebase({
+          freeCards: state.freeCards,
+          freeDice: state.freeDice,
+          diceHistory: state.diceHistory,
+          topZIndex: state.topZIndex,
+          characters: state.characters,
+          boardPieces: state.boardPieces,
+          decks: state.decks,
+          cards: state.cards,
+          round: state.round,
+        });
+        set({ isConnected: true });
+      }
+    });
 
-      moveCard: (instanceId, x, y) =>
-        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, x, y } : c) })),
+    return () => off(gameRef);
+  },
 
-      flipCard: (instanceId) =>
-        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, isFlipped: !c.isFlipped } : c) })),
+  // ── Round ────────────────────────────────────────────────────
+  setRound: (n) => {
+    set({ round: n });
+    syncToFirebase({ round: n });
+  },
 
-      rotateCard: (instanceId, delta) =>
-        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, rotation: (c.rotation + delta) % 360 } : c) })),
+  // ── Canvas ──────────────────────────────────────────────────
+  placeCardOnCanvas: (templateId, x, y) => {
+    const state = get();
+    const template = state.cards[templateId];
+    if (!template) return;
+    const newZ = state.topZIndex + 1;
+    const newCard: FreeCard = { ...template, instanceId: `inst_${genId()}`, x, y, rotation: 0, zIndex: newZ };
+    const newFreeCards = [...state.freeCards, newCard];
+    set({ freeCards: newFreeCards, topZIndex: newZ });
+    syncToFirebase({ freeCards: newFreeCards, topZIndex: newZ });
+  },
 
-      removeCard: (instanceId) =>
-        set((state) => ({ freeCards: state.freeCards.filter((c) => c.instanceId !== instanceId) })),
+  placeCardFromDeck: (deckId, x, y) => {
+    const state = get();
+    const deck = state.decks[deckId];
+    if (!deck || deck.cards.length === 0) return;
+    const idx = Math.floor(Math.random() * deck.cards.length);
+    const template = deck.cards[idx];
+    const newDeckCards = deck.cards.filter((_, i) => i !== idx);
+    const newZ = state.topZIndex + 1;
+    const newCard: FreeCard = {
+      ...template, instanceId: `inst_${genId()}`,
+      sourceDeckId: deckId, sourceCardId: template.id,
+      x, y, rotation: 0, isFlipped: true, zIndex: newZ,
+    };
+    const newDecks = { ...state.decks, [deckId]: { ...deck, cards: newDeckCards } };
+    const newFreeCards = [...state.freeCards, newCard];
+    set({ decks: newDecks, freeCards: newFreeCards, topZIndex: newZ });
+    syncToFirebase({ decks: newDecks, freeCards: newFreeCards, topZIndex: newZ });
+  },
 
-      bringToFront: (instanceId) =>
-        set((state) => {
-          const newZ = state.topZIndex + 1;
-          return { freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, zIndex: newZ } : c), topZIndex: newZ };
-        }),
+  // 拖曳中：只更新本地，不寫 Firebase（避免每幀衝突）
+  moveCard: (instanceId, x, y) => {
+    const newFreeCards = get().freeCards.map((c) => c.instanceId === instanceId ? { ...c, x, y } : c);
+    set({ freeCards: newFreeCards });
+  },
 
-      updateFreeCard: (instanceId, fields) =>
-        set((state) => ({ freeCards: state.freeCards.map((c) => c.instanceId === instanceId ? { ...c, ...fields } : c) })),
+  // 拖曳結束（mouseup）：才寫 Firebase
+  moveCardEnd: (instanceId) => {
+    const newFreeCards = get().freeCards;
+    syncToFirebase({ freeCards: newFreeCards });
+  },
 
-      // ── Dice ────────────────────────────────────────────────────
-      addDice: (x, y, sides = 12) =>
-        set((state) => {
-          const newZ = state.topZIndex + 1;
-          const newDice: FreeDice = { id: `dice_${genId()}`, x, y, sides, currentValue: 1, isRolling: false, zIndex: newZ };
-          return { freeDice: [...state.freeDice, newDice], topZIndex: newZ };
-        }),
+  flipCard: (instanceId) => {
+    const newFreeCards = get().freeCards.map((c) => c.instanceId === instanceId ? { ...c, isFlipped: !c.isFlipped } : c);
+    set({ freeCards: newFreeCards });
+    syncToFirebase({ freeCards: newFreeCards });
+  },
 
-      moveDice: (diceId, x, y) =>
-        set((state) => ({ freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, x, y } : d) })),
+  rotateCard: (instanceId, delta) => {
+    const newFreeCards = get().freeCards.map((c) => c.instanceId === instanceId ? { ...c, rotation: (c.rotation + delta) % 360 } : c);
+    set({ freeCards: newFreeCards });
+    syncToFirebase({ freeCards: newFreeCards });
+  },
 
-      rollDice: (diceId) =>
-        set((state) => {
-          const dice = state.freeDice.find((d) => d.id === diceId);
-          if (!dice) return state;
-          const value = Math.floor(Math.random() * dice.sides) + 1;
-          const newResult: DiceResult = { id: genId(), value, max: dice.sides, timestamp: Date.now() };
-          return {
-            freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, currentValue: value } : d),
-            diceHistory: [newResult, ...state.diceHistory].slice(0, 20),
-          };
-        }),
+  removeCard: (instanceId) => {
+    const newFreeCards = get().freeCards.filter((c) => c.instanceId !== instanceId);
+    set({ freeCards: newFreeCards });
+    syncToFirebase({ freeCards: newFreeCards });
+  },
 
-      changeDiceSides: (diceId, sides) =>
-        set((state) => ({ freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, sides, currentValue: 1 } : d) })),
+  bringToFront: (instanceId) => {
+    const newZ = get().topZIndex + 1;
+    const newFreeCards = get().freeCards.map((c) => c.instanceId === instanceId ? { ...c, zIndex: newZ } : c);
+    set({ freeCards: newFreeCards, topZIndex: newZ });
+    syncToFirebase({ freeCards: newFreeCards, topZIndex: newZ });
+  },
 
-      removeDice: (diceId) =>
-        set((state) => ({ freeDice: state.freeDice.filter((d) => d.id !== diceId) })),
+  updateFreeCard: (instanceId, fields) => {
+    const newFreeCards = get().freeCards.map((c) => c.instanceId === instanceId ? { ...c, ...fields } : c);
+    set({ freeCards: newFreeCards });
+    syncToFirebase({ freeCards: newFreeCards });
+  },
 
-      bringDiceToFront: (diceId) =>
-        set((state) => {
-          const newZ = state.topZIndex + 1;
-          return { freeDice: state.freeDice.map((d) => d.id === diceId ? { ...d, zIndex: newZ } : d), topZIndex: newZ };
-        }),
+  // ── Dice ────────────────────────────────────────────────────
+  addDice: (x, y, sides = 12) => {
+    const newZ = get().topZIndex + 1;
+    const newDice: FreeDice = { id: `dice_${genId()}`, x, y, sides, currentValue: 1, isRolling: false, zIndex: newZ };
+    const newFreeDice = [...get().freeDice, newDice];
+    set({ freeDice: newFreeDice, topZIndex: newZ });
+    syncToFirebase({ freeDice: newFreeDice, topZIndex: newZ });
+  },
 
-      // ── Characters ──────────────────────────────────────────────
-      toggleHPBar: (characterId, index) =>
-        set((state) => ({
-          characters: state.characters.map((c) => {
-            if (c.id !== characterId) return c;
-            const newBars = [...c.hpBars];
-            newBars[index] = !newBars[index];
-            return { ...c, hpBars: newBars };
-          }),
-        })),
+  // 拖曳中：只更新本地
+  moveDice: (diceId, x, y) => {
+    const newFreeDice = get().freeDice.map((d) => d.id === diceId ? { ...d, x, y } : d);
+    set({ freeDice: newFreeDice });
+  },
 
-      updateCharacterStat: (characterId, stat, delta) =>
-        set((state) => ({
-          characters: state.characters.map((c) => {
-            if (c.id !== characterId) return c;
-            return { ...c, [stat]: Math.max(0, c[stat] + delta) };
-          }),
-        })),
+  // 拖曳結束：才寫 Firebase
+  moveDiceEnd: (diceId) => {
+    syncToFirebase({ freeDice: get().freeDice });
+  },
 
-      resetCharacterHP: (characterId) =>
-        set((state) => ({
-          characters: state.characters.map((c) => {
-            if (c.id !== characterId) return c;
-            return { ...c, hpBars: c.hpBars.map(() => true) };
-          }),
-        })),
+  rollDice: (diceId) => {
+    const state = get();
+    const dice = state.freeDice.find((d) => d.id === diceId);
+    if (!dice) return;
+    const value = Math.floor(Math.random() * dice.sides) + 1;
+    const newResult: DiceResult = { id: genId(), value, max: dice.sides, timestamp: Date.now() };
+    const newFreeDice = state.freeDice.map((d) => d.id === diceId ? { ...d, currentValue: value } : d);
+    const newDiceHistory = [newResult, ...state.diceHistory].slice(0, 20);
+    set({ freeDice: newFreeDice, diceHistory: newDiceHistory });
+    syncToFirebase({ freeDice: newFreeDice, diceHistory: newDiceHistory });
+  },
 
-      // ── Board Pieces ────────────────────────────────────────────
-      addBoardPiece: (piece) =>
-        set((state) => {
-          const newZ = state.topZIndex + 1;
-          return {
-            boardPieces: [...state.boardPieces, { ...piece, id: `piece_${genId()}`, zIndex: newZ }],
-            topZIndex: newZ,
-          };
-        }),
+  changeDiceSides: (diceId, sides) => {
+    const newFreeDice = get().freeDice.map((d) => d.id === diceId ? { ...d, sides, currentValue: 1 } : d);
+    set({ freeDice: newFreeDice });
+    syncToFirebase({ freeDice: newFreeDice });
+  },
 
-      moveBoardPiece: (pieceId, x, y) =>
-        set((state) => ({
-          boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, x, y } : p),
-        })),
+  removeDice: (diceId) => {
+    const newFreeDice = get().freeDice.filter((d) => d.id !== diceId);
+    set({ freeDice: newFreeDice });
+    syncToFirebase({ freeDice: newFreeDice });
+  },
 
-      removeBoardPiece: (pieceId) =>
-        set((state) => ({ boardPieces: state.boardPieces.filter((p) => p.id !== pieceId) })),
+  bringDiceToFront: (diceId) => {
+    const newZ = get().topZIndex + 1;
+    const newFreeDice = get().freeDice.map((d) => d.id === diceId ? { ...d, zIndex: newZ } : d);
+    set({ freeDice: newFreeDice, topZIndex: newZ });
+    syncToFirebase({ freeDice: newFreeDice, topZIndex: newZ });
+  },
 
-      updateBoardPieceLabel: (pieceId, label) =>
-        set((state) => ({ boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, label } : p) })),
+  // ── Characters ──────────────────────────────────────────────
+  toggleHPBar: (characterId, index) => {
+    const newCharacters = get().characters.map((c) => {
+      if (c.id !== characterId) return c;
+      const newBars = [...c.hpBars];
+      newBars[index] = !newBars[index];
+      return { ...c, hpBars: newBars };
+    });
+    set({ characters: newCharacters });
+    syncToFirebase({ characters: newCharacters });
+  },
 
-      bringPieceToFront: (pieceId) =>
-        set((state) => {
-          const newZ = state.topZIndex + 1;
-          return {
-            boardPieces: state.boardPieces.map((p) => p.id === pieceId ? { ...p, zIndex: newZ } : p),
-            topZIndex: newZ,
-          };
-        }),
+  updateCharacterStat: (characterId, stat, delta) => {
+    const newCharacters = get().characters.map((c) => {
+      if (c.id !== characterId) return c;
+      return { ...c, [stat]: Math.max(0, c[stat] + delta) };
+    });
+    set({ characters: newCharacters });
+    syncToFirebase({ characters: newCharacters });
+  },
 
-      // ── Deck Builder ────────────────────────────────────────────
-      addCard: (cardData) =>
-        set((state) => {
-          const newId = `card-${genId()}`;
-          return { cards: { ...state.cards, [newId]: { ...cardData, id: newId } } };
-        }),
+  resetCharacterHP: (characterId) => {
+    const newCharacters = get().characters.map((c) => {
+      if (c.id !== characterId) return c;
+      return { ...c, hpBars: c.hpBars.map(() => true) };
+    });
+    set({ characters: newCharacters });
+    syncToFirebase({ characters: newCharacters });
+  },
 
-      updateCard: (id, cardData) =>
-        set((state) => {
-          if (!state.cards[id]) return state;
-          const updatedCard = { ...state.cards[id], ...cardData };
-          const newDecks = { ...state.decks };
-          for (const deckId in newDecks) {
-            newDecks[deckId] = { ...newDecks[deckId], cards: newDecks[deckId].cards.map((c) => c.id === id ? updatedCard : c) };
-          }
-          return { cards: { ...state.cards, [id]: updatedCard }, decks: newDecks, freeCards: state.freeCards.map((c) => c.id === id ? { ...c, ...cardData } : c) };
-        }),
+  // ── Board Pieces ────────────────────────────────────────────
+  addBoardPiece: (piece) => {
+    const newZ = get().topZIndex + 1;
+    const newBoardPieces = [...get().boardPieces, { ...piece, id: `piece_${genId()}`, zIndex: newZ }];
+    set({ boardPieces: newBoardPieces, topZIndex: newZ });
+    syncToFirebase({ boardPieces: newBoardPieces, topZIndex: newZ });
+  },
 
-      deleteCard: (id) =>
-        set((state) => {
-          const newCards = { ...state.cards };
-          delete newCards[id];
-          const newDecks = { ...state.decks };
-          for (const deckId in newDecks) {
-            newDecks[deckId] = { ...newDecks[deckId], cards: newDecks[deckId].cards.filter((c) => c.id !== id) };
-          }
-          return { cards: newCards, decks: newDecks };
-        }),
+  // 拖曳中：只更新本地
+  moveBoardPiece: (pieceId, x, y) => {
+    const newBoardPieces = get().boardPieces.map((p) => p.id === pieceId ? { ...p, x, y } : p);
+    set({ boardPieces: newBoardPieces });
+  },
 
-      createDeck: () =>
-        set((state) => {
-          const newId = `deck-${genId()}`;
-          return { decks: { ...state.decks, [newId]: { id: newId, name: 'New Deck', cards: [], backImage: DEFAULT_BACK_IMAGE } } };
-        }),
+  // 拖曳結束：才寫 Firebase
+  moveBoardPieceEnd: (pieceId) => {
+    syncToFirebase({ boardPieces: get().boardPieces });
+  },
 
-      updateDeck: (deckId, cardIds) =>
-        set((state) => {
-          if (!state.decks[deckId]) return state;
-          return { decks: { ...state.decks, [deckId]: { ...state.decks[deckId], cards: cardIds.map((id) => state.cards[id]).filter(Boolean) } } };
-        }),
+  removeBoardPiece: (pieceId) => {
+    const newBoardPieces = get().boardPieces.filter((p) => p.id !== pieceId);
+    set({ boardPieces: newBoardPieces });
+    syncToFirebase({ boardPieces: newBoardPieces });
+  },
 
-      updateDeckInfo: (deckId, info) =>
-        set((state) => {
-          if (!state.decks[deckId]) return state;
-          return { decks: { ...state.decks, [deckId]: { ...state.decks[deckId], ...info } } };
-        }),
+  updateBoardPieceLabel: (pieceId, label) => {
+    const newBoardPieces = get().boardPieces.map((p) => p.id === pieceId ? { ...p, label } : p);
+    set({ boardPieces: newBoardPieces });
+    syncToFirebase({ boardPieces: newBoardPieces });
+  },
 
-      deleteDeck: (deckId) =>
-        set((state) => {
-          const newDecks = { ...state.decks };
-          delete newDecks[deckId];
-          return { decks: newDecks };
-        }),
+  bringPieceToFront: (pieceId) => {
+    const newZ = get().topZIndex + 1;
+    const newBoardPieces = get().boardPieces.map((p) => p.id === pieceId ? { ...p, zIndex: newZ } : p);
+    set({ boardPieces: newBoardPieces, topZIndex: newZ });
+    syncToFirebase({ boardPieces: newBoardPieces, topZIndex: newZ });
+  },
 
-      clearTable: () =>
-        set((state) => {
-          // Return cards to their source decks
-          const newDecks = { ...state.decks };
-          for (const fCard of state.freeCards) {
-            const deckId = fCard.sourceDeckId;
-            const cardId = fCard.sourceCardId;
-            if (deckId && cardId && newDecks[deckId] && state.cards[cardId]) {
-              newDecks[deckId] = { ...newDecks[deckId], cards: [...newDecks[deckId].cards, state.cards[cardId]] };
-            }
-          }
-          // Reset board pieces to initial positions
-          return { freeCards: [], decks: newDecks, boardPieces: getInitialBoardPieces() };
-        }),
-    }),
-    {
-      name: 'board-game-storage-v14',
-      partialize: (state) => ({
-        cards: state.cards,
-        decks: state.decks,
-        freeCards: state.freeCards,
-        diceHistory: state.diceHistory,
-        topZIndex: state.topZIndex,
-        characters: state.characters,
-        boardPieces: state.boardPieces,
-      }),
+  // ── Deck Builder ────────────────────────────────────────────
+  addCard: (cardData) => {
+    const state = get();
+    const newId = `card-${genId()}`;
+    const newCards = { ...state.cards, [newId]: { ...cardData, id: newId } };
+    set({ cards: newCards });
+    syncToFirebase({ cards: newCards });
+  },
+
+  updateCard: (id, cardData) => {
+    const state = get();
+    if (!state.cards[id]) return;
+    const updatedCard = { ...state.cards[id], ...cardData };
+    const newCards = { ...state.cards, [id]: updatedCard };
+    const newDecks = { ...state.decks };
+    for (const deckId in newDecks) {
+      newDecks[deckId] = { ...newDecks[deckId], cards: newDecks[deckId].cards.map((c) => c.id === id ? updatedCard : c) };
     }
-  )
-);
+    const newFreeCards = state.freeCards.map((c) => c.id === id ? { ...c, ...cardData } : c);
+    set({ cards: newCards, decks: newDecks, freeCards: newFreeCards });
+    syncToFirebase({ cards: newCards, decks: newDecks, freeCards: newFreeCards });
+  },
+
+  deleteCard: (id) => {
+    const state = get();
+    const newCards = { ...state.cards };
+    delete newCards[id];
+    const newDecks = { ...state.decks };
+    for (const deckId in newDecks) {
+      newDecks[deckId] = { ...newDecks[deckId], cards: newDecks[deckId].cards.filter((c) => c.id !== id) };
+    }
+    set({ cards: newCards, decks: newDecks });
+    syncToFirebase({ cards: newCards, decks: newDecks });
+  },
+
+  createDeck: () =>
+    set((state) => {
+      const newId = `deck-${genId()}`;
+      return { decks: { ...state.decks, [newId]: { id: newId, name: 'New Deck', cards: [], backImage: DEFAULT_BACK_IMAGE } } };
+    }),
+
+  updateDeck: (deckId, cardIds) => {
+    const state = get();
+    if (!state.decks[deckId]) return;
+    const newDecks = { ...state.decks, [deckId]: { ...state.decks[deckId], cards: cardIds.map((id) => state.cards[id]).filter(Boolean) } };
+    set({ decks: newDecks });
+    syncToFirebase({ decks: newDecks });
+  },
+
+  updateDeckInfo: (deckId, info) => {
+    const state = get();
+    if (!state.decks[deckId]) return;
+    const newDecks = { ...state.decks, [deckId]: { ...state.decks[deckId], ...info } };
+    set({ decks: newDecks });
+    syncToFirebase({ decks: newDecks });
+  },
+
+  deleteDeck: (deckId) => {
+    const newDecks = { ...get().decks };
+    delete newDecks[deckId];
+    set({ decks: newDecks });
+    syncToFirebase({ decks: newDecks });
+  },
+
+  clearTable: () => {
+    const state = get();
+    const newDecks = { ...state.decks };
+    for (const fCard of state.freeCards) {
+      const deckId = fCard.sourceDeckId;
+      const cardId = fCard.sourceCardId;
+      if (deckId && cardId && newDecks[deckId] && state.cards[cardId]) {
+        newDecks[deckId] = { ...newDecks[deckId], cards: [...newDecks[deckId].cards, state.cards[cardId]] };
+      }
+    }
+    const newBoardPieces = getInitialBoardPieces();
+    set({ freeCards: [], decks: newDecks, boardPieces: newBoardPieces });
+    syncToFirebase({ freeCards: [], decks: newDecks, boardPieces: newBoardPieces });
+  },
+}));
