@@ -124,7 +124,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ onClose, isDark, roomUrl }) => 
           將連結傳給對方，進入同一個房間就會即時同步
         </p>
 
-        {/* Room ID badge */}
         <div style={{
           textAlign: 'center', marginBottom: 16,
           fontSize: 12, color: isDark ? '#6B7A9F' : '#8896B3',
@@ -132,7 +131,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ onClose, isDark, roomUrl }) => 
           房間 ID：<span style={{ fontWeight: 700, color: isDark ? '#A78BFA' : '#6B3FD4' }}>{ROOM_ID}</span>
         </div>
 
-        {/* URL display */}
         <div style={{
           background: isDark ? 'rgba(255,255,255,0.05)' : '#F3F6FB',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : '#D9E2F2'}`,
@@ -183,9 +181,8 @@ function App() {
   const [showShareModal, setShowShareModal] = useState(false);
 
   // ── 首頁判斷：沒有 room 參數就顯示 Lobby ──────────────────────
-  const [showLobby, setShowLobby] = useState(
-    !new URLSearchParams(window.location.search).get('room')
-  );
+  // 只用 boolean，不需要 setter（切換靠 window.location.reload()）
+  const showLobby = !new URLSearchParams(window.location.search).get('room');
 
   const handleEnterRoom = (roomId: string) => {
     window.history.replaceState({}, '', `?room=${roomId}`);
@@ -251,7 +248,6 @@ function App() {
       >
         {/* Left: Brand + Home button */}
         <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-          {/* 返回首頁按鈕 */}
           <button
             onClick={handleGoHome}
             style={{
@@ -283,7 +279,6 @@ function App() {
           <h1 style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', color: isDark ? '#A78BFA' : '#6B3FD4', whiteSpace: 'nowrap' }}>
             桌遊工作台
           </h1>
-          {/* 連線狀態指示燈 */}
           <div
             title={isConnected ? `已連線 · 房間：${ROOM_ID}` : '連線中...'}
             style={{
@@ -322,7 +317,6 @@ function App() {
         {/* Right: Controls */}
         <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
 
-          {/* 邀請玩家按鈕 */}
           <button
             onClick={() => setShowShareModal(true)}
             title="邀請玩家加入同一房間"
@@ -373,7 +367,6 @@ function App() {
             </button>
           )}
 
-          {/* Theme Toggle */}
           <button
             onClick={() => setTheme(isDark ? 'day' : 'night')}
             title={isDark ? '切換白天模式' : '切換夜晚模式'}
@@ -391,7 +384,6 @@ function App() {
             {isDark ? '☀️' : '🌙'}
           </button>
 
-          {/* View Switcher */}
           <div
             className="flex rounded-xl p-1"
             style={{
