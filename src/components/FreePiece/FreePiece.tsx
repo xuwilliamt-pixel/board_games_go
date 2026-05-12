@@ -5,6 +5,7 @@ import type { BoardPiece } from '../../types/game';
 
 export const FreePiece: React.FC<{ piece: BoardPiece }> = ({ piece }) => {
   const moveBoardPiece = useGameStore((s) => s.moveBoardPiece);
+  const moveBoardPieceEnd = useGameStore((s) => s.moveBoardPieceEnd); // ← 新增
   const removeBoardPiece = useGameStore((s) => s.removeBoardPiece);
   const bringPieceToFront = useGameStore((s) => s.bringPieceToFront);
 
@@ -33,13 +34,14 @@ export const FreePiece: React.FC<{ piece: BoardPiece }> = ({ piece }) => {
       };
       const onUp = () => {
         dragging.current = false;
+        if (hasMoved.current) moveBoardPieceEnd(piece.id); // ← 新增
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [piece, bringPieceToFront, moveBoardPiece]
+    [piece, bringPieceToFront, moveBoardPiece, moveBoardPieceEnd] // ← 新增
   );
 
   const handleRightClick = useCallback((e: React.MouseEvent) => {
