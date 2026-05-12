@@ -5,6 +5,7 @@ import { DeckPanel } from './components/DeckPanel/DeckPanel';
 import { DeckBuilder } from './components/DeckBuilder/DeckBuilder';
 import { CharacterPanel } from './components/CharacterPanel/CharacterPanel';
 import { RoundCounter } from './components/RoundCounter/RoundCounter';
+import { LobbyPage } from './components/LobbyPage/LobbyPage';
 import { useGameStore, ROOM_ID } from './store/gameStore';
 
 // Layout constants — single source of truth
@@ -181,6 +182,22 @@ function App() {
   const [showClearModal, setShowClearModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
+  // ── 首頁判斷：沒有 room 參數就顯示 Lobby ──────────────────────
+  const [showLobby, setShowLobby] = useState(
+    !new URLSearchParams(window.location.search).get('room')
+  );
+
+  const handleEnterRoom = (roomId: string) => {
+    window.history.replaceState({}, '', `?room=${roomId}`);
+    window.location.reload();
+  };
+
+  // ── 返回首頁 ────────────────────────────────────────────────
+  const handleGoHome = () => {
+    window.history.replaceState({}, '', window.location.pathname);
+    window.location.reload();
+  };
+
   const clearTable = useGameStore((s) => s.clearTable);
   const diceHistory = useGameStore((s) => s.diceHistory);
   const isConnected = useGameStore((s) => s.isConnected);
@@ -190,27 +207,23 @@ function App() {
 
   // ── Firebase 同步初始化 ──────────────────────────────────────
   useEffect(() => {
+    if (showLobby) return;
     const unsubscribe = initSync();
     return () => unsubscribe();
-  }, []);
+  }, [showLobby]);
 
   // ── 產生房間分享連結 ─────────────────────────────────────────
   const roomUrl = `${window.location.origin}${window.location.pathname}?room=${ROOM_ID}`;
-
-  // ── 如果 URL 沒有 room 參數，自動產生一個新房間 ID 並跳轉 ───
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (!params.get('room')) {
-      const newRoomId = Math.random().toString(36).substring(2, 9);
-      const newUrl = `${window.location.pathname}?room=${newRoomId}`;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, []);
 
   const handleClearConfirm = useCallback(() => {
     clearTable();
     setShowClearModal(false);
   }, [clearTable]);
+
+  // ── 顯示 Lobby ───────────────────────────────────────────────
+  if (showLobby) {
+    return <LobbyPage onEnter={handleEnterRoom} />;
+  }
 
   return (
     <div
@@ -236,8 +249,36 @@ function App() {
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         }}
       >
-        {/* Left: Brand */}
+        {/* Left: Brand + Home button */}
         <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+          {/* 返回首頁按鈕 */}
+          <button
+            onClick={handleGoHome}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              minHeight: 36, padding: '0 14px', borderRadius: 8,
+              border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.15)' : '#D9E2F2'}`,
+              background: isDark ? 'rgba(255,255,255,0.07)' : '#F3F6FB',
+              color: isDark ? '#C8D0E8' : '#55607A',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              transition: 'all 150ms ease-out', whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.13)' : '#E8EDF8';
+              (e.currentTarget as HTMLElement).style.borderColor = isDark ? 'rgba(255,255,255,0.28)' : '#B0BCDA';
+              (e.currentTarget as HTMLElement).style.color = isDark ? '#F4F7FF' : '#1A2340';
+              (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,255,255,0.07)' : '#F3F6FB';
+              (e.currentTarget as HTMLElement).style.borderColor = isDark ? 'rgba(255,255,255,0.15)' : '#D9E2F2';
+              (e.currentTarget as HTMLElement).style.color = isDark ? '#C8D0E8' : '#55607A';
+              (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+            }}
+          >
+            🏠 返回首頁
+          </button>
+
           <span style={{ fontSize: 20, lineHeight: 1 }}>🎲</span>
           <h1 style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em', color: isDark ? '#A78BFA' : '#6B3FD4', whiteSpace: 'nowrap' }}>
             桌遊工作台

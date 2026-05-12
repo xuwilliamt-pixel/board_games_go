@@ -8,7 +8,6 @@ const DEFAULT_BACK = defaultCardBack;
 
 interface DeckBuilderProps { theme?: 'day' | 'night'; }
 
-// ── Type badge config ──────────────────────────────────────────
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   creature: { label: '生物', color: '#35E0A1', bg: 'rgba(53,224,161,0.15)' },
   spell: { label: '法術', color: '#24D8FF', bg: 'rgba(36,216,255,0.12)' },
@@ -16,7 +15,6 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   hero: { label: '英雄', color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' },
 };
 
-// ── Card Preview ───────────────────────────────────────────────
 const CardPreview: React.FC<{
   card: Card;
   theme: 'day' | 'night';
@@ -32,7 +30,6 @@ const CardPreview: React.FC<{
 
   return (
     <div className="flex flex-col items-center" style={{ gap: 8 }}>
-      {/* 3D flip card */}
       <div
         style={{ width: 116, height: 162, perspective: 800, cursor: 'pointer' }}
         onClick={() => setFlipped((f) => !f)}
@@ -40,61 +37,38 @@ const CardPreview: React.FC<{
       >
         <div
           style={{
-            width: '100%',
-            height: '100%',
-            position: 'relative',
+            width: '100%', height: '100%', position: 'relative',
             transformStyle: 'preserve-3d',
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0)',
             transition: 'transform 420ms ease',
           }}
         >
           {/* Front */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backfaceVisibility: 'hidden',
-              borderRadius: 12,
-              border: `1.5px solid ${cardBorder}`,
-              background: cardFrontBg,
-              padding: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: isDark
-                ? '0 4px 16px rgba(0,0,0,0.5)'
-                : '0 4px 12px rgba(26,35,64,0.10)',
-            }}
-          >
-            {/* Name */}
+          <div style={{
+            position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
+            borderRadius: 12, border: `1.5px solid ${cardBorder}`,
+            background: cardFrontBg, padding: 10,
+            display: 'flex', flexDirection: 'column',
+            boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.5)' : '0 4px 12px rgba(26,35,64,0.10)',
+          }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: isDark ? '#F4F7FF' : '#1A2340', lineHeight: 1.2, marginBottom: 4 }}>
               {card.name}
             </div>
-            {/* Type badge */}
             <div style={{ display: 'inline-flex', alignSelf: 'flex-start', marginBottom: 6 }}>
-              <span style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '2px 7px',
-                borderRadius: 99,
-                background: cfg.bg,
-                color: cfg.color,
-              }}>{cfg.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>
+                {cfg.label}
+              </span>
             </div>
-            {/* Description */}
             <div style={{ fontSize: 12, color: descColor, flex: 1, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
               {card.description}
             </div>
-            {/* Stats footer */}
-            <div
-              style={{
-                marginTop: 8,
-                paddingTop: 8,
-                borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#EEF2FB'}`,
-                display: 'flex',
-                justifyContent: card.type === 'creature' ? 'space-between' : 'center',
-                alignItems: 'center',
-              }}
-            >
+            <div style={{
+              marginTop: 8, paddingTop: 8,
+              borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#EEF2FB'}`,
+              display: 'flex',
+              justifyContent: card.type === 'creature' ? 'space-between' : 'center',
+              alignItems: 'center',
+            }}>
               {card.type === 'creature' ? (
                 <>
                   <span style={{ fontSize: 14, fontWeight: 900, color: '#FF5E7A' }}>⚔️ {card.attack}</span>
@@ -107,22 +81,14 @@ const CardPreview: React.FC<{
           </div>
 
           {/* Back */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
-              borderRadius: 12,
-              border: `1.5px solid ${cardBorder}`,
-              backgroundImage: `url(${card.backImage || DEFAULT_BACK})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              boxShadow: isDark
-                ? '0 4px 16px rgba(0,0,0,0.5)'
-                : '0 4px 12px rgba(26,35,64,0.10)',
-            }}
-          >
+          <div style={{
+            position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg)', borderRadius: 12,
+            border: `1.5px solid ${cardBorder}`,
+            backgroundImage: `url(${card.backImage || DEFAULT_BACK})`,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.5)' : '0 4px 12px rgba(26,35,64,0.10)',
+          }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)', borderRadius: 12 }} />
           </div>
         </div>
@@ -131,14 +97,11 @@ const CardPreview: React.FC<{
       <div style={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.22)' : '#9AA3BA', textAlign: 'center' }}>
         點擊翻面
       </div>
-
-      {/* Action buttons */}
       {actions && <div className="flex gap-1.5">{actions}</div>}
     </div>
   );
 };
 
-// ── DeckBuilder ────────────────────────────────────────────────
 export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => {
   const isDark = theme === 'night';
   const cards = useGameStore((s) => s.cards);
@@ -152,15 +115,18 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
   const deleteDeckStore = useGameStore((s) => s.deleteDeck);
 
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [currentDeckId, setCurrentDeckId] = useState<string>('');
+  const [currentDeckId, setCurrentDeckId] = useState<string>(() => Object.keys(decks)[0] ?? '');
 
-  React.useEffect(() => {
-    if (!decks[currentDeckId] && Object.keys(decks).length > 0) {
-      setCurrentDeckId(Object.keys(decks)[0]);
-    }
-  }, [decks, currentDeckId]);
+  // ── KEY FIX: always keep currentDeckId pointing at a real deck ──
+  const deckKeys = Object.keys(decks);
+  const safeDeckId = decks[currentDeckId] ? currentDeckId : (deckKeys[0] ?? '');
+  // Sync state if it drifted (runs synchronously during render to avoid one-frame flash)
+  if (safeDeckId !== currentDeckId) {
+    setCurrentDeckId(safeDeckId);
+  }
 
-  const currentDeck = decks[currentDeckId];
+  // currentDeck is now always defined (or undefined only when 0 decks exist)
+  const currentDeck = decks[safeDeckId];
 
   const handleSaveCard = (cardData: Omit<Card, 'id'>) => {
     if (editingCardId) updateCard(editingCardId, cardData);
@@ -170,21 +136,21 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
 
   const handleAddToDeck = (cardId: string) => {
     if (!currentDeck) return;
-    updateDeck(currentDeckId, [...currentDeck.cards.map((c) => c.id), cardId]);
+    updateDeck(safeDeckId, [...currentDeck.cards.map((c) => c.id), cardId]);
   };
 
   const handleRemoveFromDeck = (indexToRemove: number) => {
     if (!currentDeck) return;
-    updateDeck(currentDeckId, currentDeck.cards.map((c) => c.id).filter((_, i) => i !== indexToRemove));
+    updateDeck(safeDeckId, currentDeck.cards.map((c) => c.id).filter((_, i) => i !== indexToRemove));
   };
 
   const handleDeleteDeck = () => {
     const keys = Object.keys(decks);
-    if (keys.length > 1) {
-      const nextId = keys.find((id) => id !== currentDeckId);
-      deleteDeckStore(currentDeckId);
-      if (nextId) setCurrentDeckId(nextId);
-    }
+    if (keys.length <= 1) return; // 最後一個不能刪
+    const nextId = keys.find((id) => id !== safeDeckId) ?? '';
+    // Set next deck BEFORE deleting to avoid undefined flash
+    setCurrentDeckId(nextId);
+    deleteDeckStore(safeDeckId);
   };
 
   // ── Styles ──
@@ -197,34 +163,19 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
   const cardItemBorder = isDark ? 'rgba(255,255,255,0.08)' : '#D9E2F2';
 
   const inputStyle: React.CSSProperties = {
-    width: '100%',
-    minHeight: 44,
-    padding: '0 14px',
+    width: '100%', minHeight: 44, padding: '0 14px',
     background: isDark ? 'rgba(255,255,255,0.05)' : '#F3F6FB',
     border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2'}`,
-    borderRadius: 10,
-    fontSize: 14,
-    fontFamily: 'inherit',
+    borderRadius: 10, fontSize: 14, fontFamily: 'inherit',
     color: isDark ? '#F4F7FF' : '#1A2340',
-    outline: 'none',
-    transition: 'border-color 150ms',
+    outline: 'none', transition: 'border-color 150ms',
   };
 
   return (
-    <div
-      className="flex w-full overflow-hidden"
-      style={{ height: 'calc(100vh - 56px)', background: bg, color: headColor }}
-    >
-      {/* ── LEFT: Card Form (300px) ── */}
-      <div
-        className="shrink-0 flex flex-col overflow-y-auto custom-scrollbar"
-        style={{
-          width: 300,
-          padding: '24px 20px',
-          background: panelBg,
-          borderRight: `1px solid ${borderCol}`,
-        }}
-      >
+    <div className="flex w-full overflow-hidden" style={{ height: 'calc(100vh - 56px)', background: bg, color: headColor }}>
+
+      {/* ── LEFT: Card Form ── */}
+      <div className="shrink-0 flex flex-col overflow-y-auto custom-scrollbar" style={{ width: 300, padding: '24px 20px', background: panelBg, borderRight: `1px solid ${borderCol}` }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? 'var(--accent-purple)' : '#6B3FD4', marginBottom: 20, letterSpacing: '-0.01em' }}>
           ✏️ 卡牌編輯器
         </h2>
@@ -237,23 +188,11 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
       </div>
 
       {/* ── MIDDLE: Card Library ── */}
-      <div
-        className="flex-1 flex flex-col min-w-0 overflow-hidden"
-        style={{ borderRight: `1px solid ${borderCol}` }}
-      >
-        <div
-          className="shrink-0"
-          style={{
-            padding: '20px 24px 16px',
-            borderBottom: `1px solid ${borderCol}`,
-          }}
-        >
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ borderRight: `1px solid ${borderCol}` }}>
+        <div className="shrink-0" style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${borderCol}` }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4, color: headColor }}>🃏 卡牌庫</h2>
-          <p style={{ fontSize: 13, color: mutedColor }}>
-            點擊「加入」加到目前牌組・點擊卡片預覽背面
-          </p>
+          <p style={{ fontSize: 13, color: mutedColor }}>點擊「加入」加到目前牌組・點擊卡片預覽背面</p>
         </div>
-
         <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '20px 24px' }}>
           <div className="flex flex-wrap" style={{ gap: 20 }}>
             {Object.values(cards).map((card) => (
@@ -293,36 +232,30 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
         </div>
       </div>
 
-      {/* ── RIGHT: Deck Builder (300px) ── */}
-      <div
-        className="shrink-0 flex flex-col overflow-hidden"
-        style={{ width: 300, padding: '24px 20px', background: panelBg }}
-      >
+      {/* ── RIGHT: Deck Builder ── */}
+      <div className="shrink-0 flex flex-col overflow-hidden" style={{ width: 300, padding: '24px 20px', background: panelBg }}>
+
         {/* Deck Selector Header */}
-        <div
-          className="rounded-xl"
-          style={{
-            padding: '16px',
-            background: isDark ? '#141D33' : '#F3F6FB',
-            border: `1.5px solid ${borderCol}`,
-            marginBottom: 16,
-          }}
-        >
+        <div className="rounded-xl" style={{ padding: 16, background: isDark ? '#141D33' : '#F3F6FB', border: `1.5px solid ${borderCol}`, marginBottom: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: headColor, marginBottom: 12 }}>📚 牌組管理</h2>
 
           {/* Deck name + New button */}
           <div className="flex gap-2" style={{ marginBottom: 10 }}>
             <input
               type="text"
-              value={currentDeck?.name || ''}
-              onChange={(e) => updateDeckInfo(currentDeckId, { name: e.target.value })}
+              value={currentDeck?.name ?? ''}
+              onChange={(e) => currentDeck && updateDeckInfo(safeDeckId, { name: e.target.value })}
               style={{ ...inputStyle, flex: 1 }}
               placeholder="牌組名稱"
             />
             <button
               className="btn btn-primary btn-sm"
               style={{ minWidth: 44, padding: '0 14px' }}
-              onClick={() => createDeck()}
+              onClick={() => {
+                const newId = createDeck();
+                // If createDeck returns the new id, switch to it
+                if (typeof newId === 'string') setCurrentDeckId(newId);
+              }}
               title="建立新牌組"
             >+</button>
           </div>
@@ -334,8 +267,8 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
             </label>
             <input
               type="text"
-              value={currentDeck?.backImage || ''}
-              onChange={(e) => updateDeckInfo(currentDeckId, { backImage: e.target.value })}
+              value={currentDeck?.backImage ?? ''}
+              onChange={(e) => currentDeck && updateDeckInfo(safeDeckId, { backImage: e.target.value })}
               style={inputStyle}
               placeholder="https://..."
             />
@@ -344,18 +277,9 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
           {/* Deck picker + count + delete */}
           <div className="flex items-center justify-between">
             <select
-              value={currentDeckId}
+              value={safeDeckId}
               onChange={(e) => setCurrentDeckId(e.target.value)}
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                background: 'transparent',
-                color: isDark ? 'var(--accent-purple)' : '#6B3FD4',
-                border: 'none',
-                outline: 'none',
-                cursor: 'pointer',
-                maxWidth: 140,
-              }}
+              style={{ fontSize: 13, fontWeight: 600, background: 'transparent', color: isDark ? 'var(--accent-purple)' : '#6B3FD4', border: 'none', outline: 'none', cursor: 'pointer', maxWidth: 140 }}
             >
               {Object.values(decks).map((d) => (
                 <option key={d.id} value={d.id} style={{ background: isDark ? '#0E1525' : '#fff', color: isDark ? '#F4F7FF' : '#1A2340' }}>
@@ -364,28 +288,17 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
               ))}
             </select>
             <div className="flex items-center gap-2">
-              <span style={{
-                fontSize: 13,
-                fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: 99,
-                background: isDark ? 'rgba(139,92,255,0.15)' : '#EEF3FC',
-                color: isDark ? 'var(--accent-purple)' : '#6B3FD4',
-                border: `1px solid ${isDark ? 'rgba(139,92,255,0.3)' : '#D9E2F2'}`,
-              }}>
+              <span style={{ fontSize: 13, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: isDark ? 'rgba(139,92,255,0.15)' : '#EEF3FC', color: isDark ? 'var(--accent-purple)' : '#6B3FD4', border: `1px solid ${isDark ? 'rgba(139,92,255,0.3)' : '#D9E2F2'}` }}>
                 {currentDeck?.cards.length ?? 0} 張
               </span>
-              {Object.keys(decks).length > 1 && (
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={handleDeleteDeck}
-                >刪除</button>
+              {/* 只有多於1個牌組時才顯示刪除按鈕 */}
+              {deckKeys.length > 1 && (
+                <button className="btn btn-sm btn-danger" onClick={handleDeleteDeck}>刪除</button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Hint */}
         <p style={{ fontSize: 12, color: mutedColor, marginBottom: 10 }}>點擊卡牌從牌組移除</p>
 
         {/* Deck card list */}
@@ -398,12 +311,7 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
                   key={`${card.id}-${index}`}
                   onClick={() => handleRemoveFromDeck(index)}
                   className="flex items-center gap-3 rounded-xl cursor-pointer group"
-                  style={{
-                    padding: '9px 12px',
-                    background: cardItemBg,
-                    border: `1.5px solid ${cardItemBorder}`,
-                    transition: 'all 150ms ease-out',
-                  }}
+                  style={{ padding: '9px 12px', background: cardItemBg, border: `1.5px solid ${cardItemBorder}`, transition: 'all 150ms ease-out' }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,94,122,0.5)';
                     (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,94,122,0.08)' : '#FFF0F3';
@@ -413,43 +321,16 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
                     (e.currentTarget as HTMLElement).style.background = cardItemBg;
                   }}
                 >
-                  {/* Thumbnail */}
-                  <div
-                    style={{
-                      width: 36,
-                      height: 50,
-                      borderRadius: 7,
-                      backgroundImage: `url(${card.backImage || DEFAULT_BACK})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      border: `1px solid ${cardItemBorder}`,
-                      flexShrink: 0,
-                    }}
-                  />
-                  {/* Info */}
+                  <div style={{ width: 36, height: 50, borderRadius: 7, backgroundImage: `url(${card.backImage || DEFAULT_BACK})`, backgroundSize: 'cover', backgroundPosition: 'center', border: `1px solid ${cardItemBorder}`, flexShrink: 0 }} />
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 14, fontWeight: 700, color: headColor, marginBottom: 3 }} className="truncate">
-                      {card.name}
-                    </div>
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: '1px 6px',
-                      borderRadius: 99,
-                      background: cfg.bg,
-                      color: cfg.color,
-                    }}>{cfg.label}</span>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: headColor, marginBottom: 3 }} className="truncate">{card.name}</div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
                   </div>
-                  {/* Remove hint */}
-                  <span
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ fontSize: 12, color: '#FF5E7A', fontWeight: 700, flexShrink: 0 }}
-                  >
-                    移除
-                  </span>
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ fontSize: 12, color: '#FF5E7A', fontWeight: 700, flexShrink: 0 }}>移除</span>
                 </div>
               );
             })}
+
             {(!currentDeck || currentDeck.cards.length === 0) && (
               <div className="flex flex-col items-center justify-center" style={{ padding: '40px 16px', gap: 8 }}>
                 <span style={{ fontSize: 32 }}>📭</span>

@@ -32,23 +32,6 @@ function getRoleLabel(role: CharacterRole): string {
   }
 }
 
-interface HPSegProps { filled: boolean; color: string; onClick: () => void; }
-const HPSeg: React.FC<HPSegProps> = ({ filled, color, onClick }) => (
-  <button
-    onClick={onClick}
-    title={filled ? '點擊扣除 HP' : '點擊回復 HP'}
-    style={{
-      flex: 1, height: 10, borderRadius: 4,
-      border: `1.5px solid ${filled ? color : 'rgba(255,255,255,0.12)'}`,
-      background: filled ? color : 'transparent',
-      boxShadow: filled ? `0 0 8px ${color}60` : 'none',
-      cursor: 'pointer', transition: 'all 150ms ease-out', padding: 0,
-    }}
-    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scaleY(1.25)'; }}
-    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scaleY(1)'; }}
-  />
-);
-
 interface CharCardProps { character: Character; theme: 'day' | 'night'; }
 const CharCard: React.FC<CharCardProps> = ({ character, theme }) => {
   const toggleHPBar = useGameStore((s) => s.toggleHPBar);
@@ -66,6 +49,24 @@ const CharCard: React.FC<CharCardProps> = ({ character, theme }) => {
   const statBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(26,35,64,0.05)';
   const statLabel = isDark ? 'rgba(255,255,255,0.45)' : '#9AA3BA';
   const btnColor = isDark ? 'rgba(255,255,255,0.40)' : '#9AA3BA';
+
+  // HP +1 → 找最左邊（index 最小）的空格子填滿
+  const handleHPPlus = () => {
+    const firstEmpty = character.hpBars.findIndex((v) => !v);
+    if (firstEmpty !== -1) toggleHPBar(character.id, firstEmpty);
+  };
+
+  // HP -1 → 找最右邊（index 最大）的填滿格子清空
+  const handleHPMinus = () => {
+    let lastFilled = -1;
+    for (let i = character.hpBars.length - 1; i >= 0; i--) {
+      if (character.hpBars[i]) { lastFilled = i; break; }
+    }
+    if (lastFilled !== -1) toggleHPBar(character.id, lastFilled);
+  };
+
+  const canPlus = character.hpBars.some((v) => !v);
+  const canMinus = character.hpBars.some((v) => v);
 
   return (
     <div style={{ background: cardBg, border: `1.5px solid ${cardBorder}`, borderRadius: 14, padding: '14px 14px 12px', transition: 'all 200ms ease-out' }}>
@@ -89,20 +90,74 @@ const CharCard: React.FC<CharCardProps> = ({ character, theme }) => {
         >重置</button>
       </div>
 
-      {/* HP Section */}
+      {/* HP Section — +/- 按鈕版 */}
       <div style={{ marginBottom: 10 }}>
-        <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', color: isDark ? 'rgba(255,255,255,0.40)' : '#9AA3BA' }}>HP</span>
-          <span style={{ fontSize: 14, fontWeight: 800, color: hpColor, letterSpacing: '0.02em' }}>{filled} / {total}</span>
+        {/* 數值行：− 數字/滿血 + */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', color: isDark ? 'rgba(255,255,255,0.40)' : '#9AA3BA', flexShrink: 0 }}>HP</span>
+
+          {/* − 按鈕（扣血） */}
+          <button
+            onClick={handleHPMinus}
+            disabled={!canMinus}
+            title="扣 1 HP"
+            style={{
+              width: 28, height: 28, borderRadius: 8, border: 'none',
+              background: canMinus
+                ? (isDark ? 'rgba(255,94,122,0.18)' : 'rgba(220,48,96,0.10)')
+                : (isDark ? 'rgba(255,255,255,0.04)' : '#F3F6FB'),
+              color: canMinus ? '#FF5E7A' : (isDark ? 'rgba(255,255,255,0.18)' : '#C0C8D8'),
+              fontSize: 16, fontWeight: 900, cursor: canMinus ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 150ms', flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { if (canMinus) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,94,122,0.32)' : 'rgba(220,48,96,0.20)'; }}
+            onMouseLeave={(e) => { if (canMinus) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,94,122,0.18)' : 'rgba(220,48,96,0.10)'; }}
+          >−</button>
+
+          {/* HP 數值 */}
+          <span style={{ fontSize: 15, fontWeight: 900, color: hpColor, minWidth: 48, textAlign: 'center', letterSpacing: '0.02em', lineHeight: 1 }}>
+            {filled} / {total}
+          </span>
+
+          {/* + 按鈕（回血） */}
+          <button
+            onClick={handleHPPlus}
+            disabled={!canPlus}
+            title="加 1 HP"
+            style={{
+              width: 28, height: 28, borderRadius: 8, border: 'none',
+              background: canPlus
+                ? (isDark ? 'rgba(53,224,161,0.18)' : 'rgba(22,163,74,0.10)')
+                : (isDark ? 'rgba(255,255,255,0.04)' : '#F3F6FB'),
+              color: canPlus ? '#35E0A1' : (isDark ? 'rgba(255,255,255,0.18)' : '#C0C8D8'),
+              fontSize: 16, fontWeight: 900, cursor: canPlus ? 'pointer' : 'not-allowed',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 150ms', flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { if (canPlus) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(53,224,161,0.32)' : 'rgba(22,163,74,0.20)'; }}
+            onMouseLeave={(e) => { if (canPlus) (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(53,224,161,0.18)' : 'rgba(22,163,74,0.10)'; }}
+          >+</button>
         </div>
-        <div className="flex" style={{ gap: 3 }}>
+
+        {/* HP 條（視覺用，不可點擊） */}
+        <div style={{ display: 'flex', gap: 3 }}>
           {character.hpBars.map((isFilled, i) => (
-            <HPSeg key={i} filled={isFilled} color={hpColor} onClick={() => toggleHPBar(character.id, i)} />
+            <div
+              key={i}
+              style={{
+                flex: 1, height: 8, borderRadius: 4,
+                border: `1.5px solid ${isFilled ? hpColor : 'rgba(255,255,255,0.10)'}`,
+                background: isFilled ? hpColor : 'transparent',
+                boxShadow: isFilled ? `0 0 6px ${hpColor}50` : 'none',
+                transition: 'all 150ms ease-out',
+              }}
+            />
           ))}
         </div>
       </div>
 
-      {/* ── ATK / DEF ── 修正：overflow-hidden + minWidth:0 防止+按鈕跑版 */}
+      {/* ── ATK / DEF ── */}
       <div style={{ display: 'flex', gap: 6 }}>
         {([
           { label: 'ATK', stat: 'attack' as const, val: character.attack, icon: '⚔️', color: '#FF5E7A' },
@@ -111,18 +166,16 @@ const CharCard: React.FC<CharCardProps> = ({ character, theme }) => {
           <div
             key={stat}
             style={{
-              flex: 1, minWidth: 0, // ← 防止 flex child 撐破父容器
+              flex: 1, minWidth: 0,
               display: 'flex', alignItems: 'center',
               background: statBg, borderRadius: 12,
               padding: '7px 8px', gap: 4, overflow: 'hidden',
             }}
           >
-            {/* icon + label */}
             <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: statLabel, letterSpacing: '0.04em', flexShrink: 0 }}>
               {label}
             </span>
-            {/* − value + 推到右側 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 'auto', flexShrink: 0 }}>
               <button
                 onClick={() => updateStat(character.id, stat, -1)}
