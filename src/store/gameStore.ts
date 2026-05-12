@@ -181,7 +181,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   initSync: () => {
     const gameRef = ref(db, `rooms/${ROOM_ID}`);
 
-    const unsubscribe = onValue(gameRef, (snapshot) => {
+    onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         set({
@@ -260,7 +260,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   // 拖曳結束（mouseup）：才寫 Firebase
-  moveCardEnd: (instanceId) => {
+  moveCardEnd: (_instanceId) => {
     const newFreeCards = get().freeCards;
     syncToFirebase({ freeCards: newFreeCards });
   },
@@ -312,7 +312,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   // 拖曳結束：才寫 Firebase
-  moveDiceEnd: (diceId) => {
+  moveDiceEnd: (_diceId) => {
     syncToFirebase({ freeDice: get().freeDice });
   },
 
@@ -392,7 +392,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   // 拖曳結束：才寫 Firebase
-  moveBoardPieceEnd: (pieceId) => {
+  moveBoardPieceEnd: (_pieceId) => {
     syncToFirebase({ boardPieces: get().boardPieces });
   },
 
