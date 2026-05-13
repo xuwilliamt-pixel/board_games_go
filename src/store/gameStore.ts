@@ -16,6 +16,15 @@ export const ROOM_ID = getRoomId();
 const DEFAULT_BACK_IMAGE = defaultCardBack;
 const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+// ── Firebase Array 修復工具 ────────────────────────────────────
+// Firebase 在 array 有元素被刪除時，會把它存成 object（{0:..., 2:...}）
+// 這個 helper 確保從 Firebase 拿回來的資料都是真正的 array
+const toArray = <T>(val: unknown, fallback: T[]): T[] => {
+  if (!val) return fallback;
+  if (Array.isArray(val)) return val;
+  return Object.values(val as Record<string, T>);
+};
+
 // ── Initial Characters ─────────────────────────────────────────
 const initialCharacters: Character[] = [
   { id: 'hero-1', name: '戰士', role: 'warrior', emoji: '⚔️', color: '#ef4444', hpBars: Array(10).fill(true), attack: 4, defense: 3 },
@@ -106,7 +115,7 @@ const initialState: GameState = {
   topZIndex: 10,
   characters: initialCharacters,
   boardPieces: getInitialBoardPieces(),
-  round: 1, // ← 新增
+  round: 1,
 };
 
 type SyncableState = Pick<GameState, 'freeCards' | 'freeDice' | 'diceHistory' | 'topZIndex' | 'characters' | 'boardPieces' | 'decks' | 'round' | 'cards'>;
@@ -117,10 +126,6 @@ const syncToFirebase = (patch: Partial<SyncableState>) => {
   const clean = JSON.parse(JSON.stringify(patch));
   update(gameRef, clean);
 };
-
-// ── 節流工具：拖曳期間本地即時更新，放開滑鼠才寫 Firebase ──────
-// 用法：在 mouseup 時呼叫 syncToFirebase，mousemove 只呼叫 set()
-// 這樣對方每次放開後就會同步，避免每幀都寫 Firebase 造成衝突
 
 // ── Store Interface ────────────────────────────────────────────
 interface GameStore extends GameState {
@@ -133,7 +138,7 @@ interface GameStore extends GameState {
   placeCardOnCanvas: (templateId: string, x: number, y: number) => void;
   placeCardFromDeck: (deckId: string, x: number, y: number) => void;
   moveCard: (instanceId: string, x: number, y: number) => void;
-  moveCardEnd: (instanceId: string) => void; // ← 拖曳結束後同步
+  moveCardEnd: (instanceId: string) => void;
   flipCard: (instanceId: string) => void;
   rotateCard: (instanceId: string, delta: number) => void;
   removeCard: (instanceId: string) => void;
@@ -143,7 +148,7 @@ interface GameStore extends GameState {
   // Dice
   addDice: (x: number, y: number, sides?: FreeDice['sides']) => void;
   moveDice: (diceId: string, x: number, y: number) => void;
-  moveDiceEnd: (diceId: string) => void; // ← 拖曳結束後同步
+  moveDiceEnd: (diceId: string) => void;
   rollDice: (diceId: string) => void;
   changeDiceSides: (diceId: string, sides: FreeDice['sides']) => void;
   removeDice: (diceId: string) => void;
@@ -157,7 +162,7 @@ interface GameStore extends GameState {
   // Board Pieces
   addBoardPiece: (piece: Omit<BoardPiece, 'id' | 'zIndex'>) => void;
   moveBoardPiece: (pieceId: string, x: number, y: number) => void;
-  moveBoardPieceEnd: (pieceId: string) => void; // ← 拖曳結束後同步
+  moveBoardPieceEnd: (pieceId: string) => void;
   removeBoardPiece: (pieceId: string) => void;
   updateBoardPieceLabel: (pieceId: string, label: string) => void;
   bringPieceToFront: (pieceId: string) => void;
@@ -184,16 +189,33 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
+        // ✅ 修復：Firebase 儲存 array 時可能轉成 object，用 toArray 確保還原成真正的 array
+        const characters = toArray<Character>(data.characters, initialCharacters).map((c) => ({
+          ...c,
+          // hpBars 也可能被 Firebase 轉成 object，同樣需要還原
+          hpBars: toArray<boolean>(c.hpBars, Array(10).fill(true)),
+        }));
+
+        // 修復：Firebase 會把空 array 刪掉，deck.cards 可能是 undefined
+        const rawDecks = data.decks ?? initialDecks;
+        const fixedDecks: typeof initialDecks = {};
+        for (const deckId in rawDecks) {
+          fixedDecks[deckId] = {
+            ...rawDecks[deckId],
+            cards: toArray<Card>(rawDecks[deckId].cards, []),
+          };
+        }
+
         set({
-          freeCards: data.freeCards ?? [],
-          freeDice: data.freeDice ?? getInitialDice(),
-          diceHistory: data.diceHistory ?? [],
-          topZIndex: data.topZIndex ?? 10,
-          characters: data.characters ?? initialCharacters,
-          boardPieces: data.boardPieces ?? getInitialBoardPieces(),
-          decks: data.decks ?? initialDecks,
-          cards: data.cards ?? mockCards,
-          round: data.round ?? 1,
+          freeCards:   toArray<FreeCard>(data.freeCards,   []),
+          freeDice:    toArray<FreeDice>(data.freeDice,    getInitialDice()),
+          diceHistory: toArray<DiceResult>(data.diceHistory, []),
+          topZIndex:   data.topZIndex ?? 10,
+          characters,
+          boardPieces: toArray<BoardPiece>(data.boardPieces, getInitialBoardPieces()),
+          decks:       fixedDecks,
+          cards:       data.cards ?? mockCards,
+          round:       data.round ?? 1,
           isConnected: true,
         });
       } else {
@@ -253,13 +275,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     syncToFirebase({ decks: newDecks, freeCards: newFreeCards, topZIndex: newZ });
   },
 
-  // 拖曳中：只更新本地，不寫 Firebase（避免每幀衝突）
   moveCard: (instanceId, x, y) => {
     const newFreeCards = get().freeCards.map((c) => c.instanceId === instanceId ? { ...c, x, y } : c);
     set({ freeCards: newFreeCards });
   },
 
-  // 拖曳結束（mouseup）：才寫 Firebase
   moveCardEnd: (_instanceId) => {
     const newFreeCards = get().freeCards;
     syncToFirebase({ freeCards: newFreeCards });
@@ -305,13 +325,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     syncToFirebase({ freeDice: newFreeDice, topZIndex: newZ });
   },
 
-  // 拖曳中：只更新本地
   moveDice: (diceId, x, y) => {
     const newFreeDice = get().freeDice.map((d) => d.id === diceId ? { ...d, x, y } : d);
     set({ freeDice: newFreeDice });
   },
 
-  // 拖曳結束：才寫 Firebase
   moveDiceEnd: (_diceId) => {
     syncToFirebase({ freeDice: get().freeDice });
   },
@@ -351,7 +369,9 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   toggleHPBar: (characterId, index) => {
     const newCharacters = get().characters.map((c) => {
       if (c.id !== characterId) return c;
-      const newBars = [...c.hpBars];
+      // ✅ 修復：hpBars 從 Firebase 拿回來可能是 object，確保是 array
+      const bars = Array.isArray(c.hpBars) ? c.hpBars : Object.values(c.hpBars) as boolean[];
+      const newBars = [...bars];
       newBars[index] = !newBars[index];
       return { ...c, hpBars: newBars };
     });
@@ -385,13 +405,11 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     syncToFirebase({ boardPieces: newBoardPieces, topZIndex: newZ });
   },
 
-  // 拖曳中：只更新本地
   moveBoardPiece: (pieceId, x, y) => {
     const newBoardPieces = get().boardPieces.map((p) => p.id === pieceId ? { ...p, x, y } : p);
     set({ boardPieces: newBoardPieces });
   },
 
-  // 拖曳結束：才寫 Firebase
   moveBoardPieceEnd: (_pieceId) => {
     syncToFirebase({ boardPieces: get().boardPieces });
   },

@@ -149,7 +149,7 @@ export const DeckPanel: React.FC<{ theme?: 'day' | 'night' }> = ({ theme = 'nigh
                         marginTop: 3,
                       }}
                     >
-                      {deck.cards.length} 張牌
+                      {(deck.cards ?? []).length} 張牌
                     </div>
                   </div>
                   {/* Chevron */}
@@ -195,8 +195,8 @@ export const DeckPanel: React.FC<{ theme?: 'day' | 'night' }> = ({ theme = 'nigh
 
                         {/* Card list */}
                         <div className="flex flex-col gap-1.5">
-                          {Array.from(new Map(deck.cards.map((c) => [c.id, c])).values()).map((c) => {
-                            const count   = deck.cards.filter((dc) => dc.id === c.id).length;
+                          {Array.from(new Map((deck.cards ?? []).map((c) => [c.id, c])).values()).map((c) => {
+                            const count   = (deck.cards ?? []).filter((dc) => dc.id === c.id).length;
                             const badge   = TYPE_BADGE[c.type] || { label: c.type, color: '#8B5CFF' };
                             return (
                               <div
