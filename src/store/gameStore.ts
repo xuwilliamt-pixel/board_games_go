@@ -214,7 +214,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           characters,
           boardPieces: toArray<BoardPiece>(data.boardPieces, getInitialBoardPieces()),
           decks:       fixedDecks,
-          cards:       data.cards ?? mockCards,
+          cards:       data.cards != null ? data.cards : {},
           round:       data.round ?? 1,
           isConnected: true,
         });

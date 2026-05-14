@@ -138,37 +138,46 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
             animate={{ rotateY: card.isFlipped ? 180 : 0 }}
             transition={{ duration: 0.5, type: 'spring', stiffness: 280, damping: 22 }}
           >
-            {/* Front */}
+            {/* Front（資訊面） */}
             <div
               className={`absolute inset-0 rounded-lg border-2 overflow-hidden shadow-xl flex flex-col ${theme === 'day'
                 ? 'border-amber-400 bg-amber-50'
                 : 'border-violet-400/80 bg-[#1e1535]'
                 }`}
-              style={{ backfaceVisibility: 'hidden' }}
+              style={{
+                backfaceVisibility: 'hidden',
+                backgroundImage: card.backImage ? `url(${card.backImage})` : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
             >
-              <div className="absolute inset-0 p-1 flex flex-col">
+              {/* 有插圖時加遮罩 */}
+              {card.backImage && (
+                <div className="absolute inset-0 bg-black/55 rounded-lg" />
+              )}
+              <div className="absolute inset-0 p-1 flex flex-col" style={{ position: 'relative', zIndex: 1 }}>
                 <div className="flex justify-between items-start">
-                  <span className={`text-[12px] font-black leading-tight truncate ${theme === 'day' ? 'text-stone-900' : 'text-white'}`}>{card.name}</span>
+                  <span className="text-[12px] font-black leading-tight truncate text-white">{card.name}</span>
                   <span className={`text-[12px] shrink-0 ml-0.5 px-0.5 rounded font-bold ${theme === 'day' ? 'bg-amber-200 text-amber-800' : 'bg-violet-900/60 text-violet-300'}`}>{card.type[0].toUpperCase()}</span>
                 </div>
-                <div className={`flex-1 text-[10px] leading-tight overflow-hidden mt-0.5 ${theme === 'day' ? 'text-stone-700' : 'text-gray-300'}`}>
+                <div className="flex-1 text-[10px] leading-tight overflow-hidden mt-0.5 text-gray-200">
                   {card.description}
                 </div>
                 {card.type === 'creature' ? (
-                  <div className={`flex justify-between pt-0.5 border-t ${theme === 'day' ? 'border-amber-200' : 'border-violet-800/60'}`}>
+                  <div className={`flex justify-between pt-0.5 border-t ${theme === 'day' ? 'border-white/30' : 'border-violet-800/60'}`}>
                     <div className="text-center">
-                      <div className="text-[9px] text-red-500/80 uppercase font-bold">ATK</div>
-                      <div className="text-[9px] font-black text-red-500">{card.attack}</div>
+                      <div className="text-[9px] text-red-400 uppercase font-bold">ATK</div>
+                      <div className="text-[9px] font-black text-red-400">{card.attack}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-[9px] text-green-600/80 uppercase font-bold">HP</div>
-                      <div className="text-[9px] font-black text-green-600">{card.health}</div>
+                      <div className="text-[9px] text-green-400 uppercase font-bold">HP</div>
+                      <div className="text-[9px] font-black text-green-400">{card.health}</div>
                     </div>
                   </div>
                 ) : (
-                  <div className={`text-center pt-0.5 border-t ${theme === 'day' ? 'border-amber-200' : 'border-violet-800/60'}`}>
-                    <div className="text-[9px] text-violet-500/80 uppercase font-bold">Val</div>
-                    <div className="text-[9px] font-black text-violet-500">{card.value}</div>
+                  <div className={`text-center pt-0.5 border-t ${theme === 'day' ? 'border-white/30' : 'border-violet-800/60'}`}>
+                    <div className="text-[9px] text-violet-300 uppercase font-bold">Val</div>
+                    <div className="text-[9px] font-black text-violet-300">{card.value}</div>
                   </div>
                 )}
               </div>
@@ -243,7 +252,7 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
               <div className="flex flex-col gap-3">
                 {[
                   { label: '名稱', key: 'name', placeholder: '卡牌名稱' },
-                  { label: '背面圖片網址', key: 'backImage', placeholder: 'https://...' },
+                  { label: '資訊面圖片網址', key: 'backImage', placeholder: 'https://...' },
                 ].map(({ label, key, placeholder }) => (
                   <div key={key}>
                     <label className="text-xs text-white/50 mb-1 block">{label}</label>

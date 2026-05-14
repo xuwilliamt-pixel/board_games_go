@@ -18,8 +18,9 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
 const CardPreview: React.FC<{
   card: Card;
   theme: 'day' | 'night';
+  deckBackImage?: string;
   actions?: React.ReactNode;
-}> = ({ card, theme, actions }) => {
+}> = ({ card, theme, deckBackImage, actions }) => {
   const [flipped, setFlipped] = useState(false);
   const isDark = theme === 'night';
   const cfg = TYPE_CONFIG[card.type] || { label: card.type, color: '#8B5CFF', bg: 'rgba(139,92,255,0.15)' };
@@ -47,45 +48,54 @@ const CardPreview: React.FC<{
           <div style={{
             position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
             borderRadius: 12, border: `1.5px solid ${cardBorder}`,
-            background: cardFrontBg, padding: 10,
+            background: card.backImage ? `url(${card.backImage}) center/cover no-repeat` : cardFrontBg,
+            padding: 10,
             display: 'flex', flexDirection: 'column',
             boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.5)' : '0 4px 12px rgba(26,35,64,0.10)',
+            overflow: 'hidden',
           }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: isDark ? '#F4F7FF' : '#1A2340', lineHeight: 1.2, marginBottom: 4 }}>
-              {card.name}
-            </div>
-            <div style={{ display: 'inline-flex', alignSelf: 'flex-start', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>
-                {cfg.label}
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: descColor, flex: 1, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
-              {card.description}
-            </div>
-            <div style={{
-              marginTop: 8, paddingTop: 8,
-              borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#EEF2FB'}`,
-              display: 'flex',
-              justifyContent: card.type === 'creature' ? 'space-between' : 'center',
-              alignItems: 'center',
-            }}>
-              {card.type === 'creature' ? (
-                <>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: '#FF5E7A' }}>⚔️ {card.attack}</span>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: '#35E0A1' }}>❤️ {card.health}</span>
-                </>
-              ) : (
-                <span style={{ fontSize: 16, fontWeight: 900, color: '#8B5CFF' }}>{card.value}</span>
-              )}
+            {/* 有圖片時加遮罩讓文字清晰 */}
+            {card.backImage && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 12 }} />
+            )}
+            {/* 文字內容：z-index 確保在遮罩上方 */}
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#F4F7FF', lineHeight: 1.2, marginBottom: 4 }}>
+                {card.name}
+              </div>
+              <div style={{ display: 'inline-flex', alignSelf: 'flex-start', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>
+                  {cfg.label}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', flex: 1, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
+                {card.description}
+              </div>
+              <div style={{
+                marginTop: 8, paddingTop: 8,
+                borderTop: '1px solid rgba(255,255,255,0.15)',
+                display: 'flex',
+                justifyContent: card.type === 'creature' ? 'space-between' : 'center',
+                alignItems: 'center',
+              }}>
+                {card.type === 'creature' ? (
+                  <>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: '#FF5E7A' }}>⚔️ {card.attack}</span>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: '#35E0A1' }}>❤️ {card.health}</span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 16, fontWeight: 900, color: '#8B5CFF' }}>{card.value}</span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Back */}
+          {/* Back（封面）— 使用牌組封面圖 */}
           <div style={{
             position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
             transform: 'rotateY(180deg)', borderRadius: 12,
             border: `1.5px solid ${cardBorder}`,
-            backgroundImage: `url(${card.backImage || DEFAULT_BACK})`,
+            backgroundImage: `url(${deckBackImage || DEFAULT_BACK})`,
             backgroundSize: 'cover', backgroundPosition: 'center',
             boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.5)' : '0 4px 12px rgba(26,35,64,0.10)',
           }}>
@@ -200,6 +210,7 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
                 key={card.id}
                 card={card}
                 theme={theme}
+                deckBackImage={currentDeck?.backImage}
                 actions={
                   <>
                     <button
@@ -321,7 +332,9 @@ export const DeckBuilder: React.FC<DeckBuilderProps> = ({ theme = 'night' }) => 
                     (e.currentTarget as HTMLElement).style.background = cardItemBg;
                   }}
                 >
-                  <div style={{ width: 36, height: 50, borderRadius: 7, backgroundImage: `url(${card.backImage || DEFAULT_BACK})`, backgroundSize: 'cover', backgroundPosition: 'center', border: `1px solid ${cardItemBorder}`, flexShrink: 0 }} />
+                  <div style={{ width: 36, height: 50, borderRadius: 7, background: TYPE_CONFIG[card.type]?.bg ?? 'rgba(139,92,255,0.15)', border: `1px solid ${TYPE_CONFIG[card.type]?.color ?? '#8B5CFF'}44`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 18 }}>{card.type === 'creature' ? '🐉' : card.type === 'spell' ? '✨' : card.type === 'item' ? '🎒' : '🦸'}</span>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 14, fontWeight: 700, color: headColor, marginBottom: 3 }} className="truncate">{card.name}</div>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
