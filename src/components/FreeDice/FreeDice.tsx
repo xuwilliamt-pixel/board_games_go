@@ -1,176 +1,249 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FreeDice as FreeDiceType } from '../../types/game';
 import { useGameStore } from '../../store/gameStore';
 
-const DICE_SIDES: FreeDiceType['sides'][] = [4, 6, 8, 10, 12, 20];
+// ── Injected keyframes ────────────────────────────────────────
+const STYLE_ID = 'freedice-keyframes-v2';
+if (typeof document !== 'undefined' && !document.getElementById(STYLE_ID)) {
+  const s = document.createElement('style');
+  s.id = STYLE_ID;
+  s.textContent = `
+    @keyframes slot-tick {
+      0%   { transform: translateY(0px);   opacity: 1; }
+      25%  { transform: translateY(-8px);  opacity: 0.3; }
+      50%  { transform: translateY(6px);   opacity: 0.2; }
+      75%  { transform: translateY(-4px);  opacity: 0.6; }
+      100% { transform: translateY(0px);   opacity: 1; }
+    }
+    @keyframes dice-settle {
+      0%   { transform: scale(1.18); }
+      55%  { transform: scale(0.95); }
+      80%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+    @keyframes dice-press {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(0.92); }
+      100% { transform: scale(1); }
+    }
+    @keyframes sum-pop {
+      0%   { transform: scale(0.7) translateY(4px); opacity: 0; }
+      60%  { transform: scale(1.12) translateY(-1px); opacity: 1; }
+      100% { transform: scale(1) translateY(0px); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(s);
+}
 
-const DICE_THEME: Record<number, { from: string; mid: string; to: string; glow: string; accent: string; textColor: string }> = {
-  4: { from: '#f97316', mid: '#ea580c', to: '#7c2d12', glow: '#f97316', accent: '#fed7aa', textColor: '#fff' },
-  6: { from: '#f0f0f0', mid: '#d8d8d8', to: '#a0a0a0', glow: '#cccccc', accent: '#1a1a1a', textColor: '#1a1a1a' },
-  8: { from: '#34d399', mid: '#059669', to: '#064e3b', glow: '#10b981', accent: '#a7f3d0', textColor: '#fff' },
-  10: { from: '#38bdf8', mid: '#0284c7', to: '#0c4a6e', glow: '#0ea5e9', accent: '#bae6fd', textColor: '#fff' },
-  12: { from: '#f472b6', mid: '#db2777', to: '#831843', glow: '#ec4899', accent: '#fbcfe8', textColor: '#fff' },
-  20: { from: '#fbbf24', mid: '#d97706', to: '#78350f', glow: '#f59e0b', accent: '#fde68a', textColor: '#fff' },
+const ROLL_DURATION = 800; // ms
+const TICK_INTERVAL = 60;  // ms between random number flashes
+
+// ── Single die display ────────────────────────────────────────
+interface SingleDieProps {
+  value: number;
+  isRolling: boolean;
+  tickValue: number;
+  isPressing: boolean;
+  onInteract: (e: React.MouseEvent) => void;
+  onRightClick: (e: React.MouseEvent) => void;
+  zIndex: number;
+}
+
+const SingleDie: React.FC<SingleDieProps> = ({
+  value, isRolling, tickValue, isPressing, onInteract, onRightClick, zIndex
+}) => {
+  const displayNum = isRolling ? tickValue : value;
+
+  return (
+    <div
+      onClick={onInteract}
+      onContextMenu={onRightClick}
+      style={{
+        width: 72,
+        height: 72,
+        borderRadius: 18,
+        background: 'linear-gradient(145deg, #ffffff 0%, #e8e8e8 40%, #d0d0d0 100%)',
+        boxShadow: isPressing
+          ? '0 2px 6px rgba(0,0,0,0.18), inset 0 2px 4px rgba(0,0,0,0.12)'
+          : '0 6px 16px rgba(0,0,0,0.20), 0 2px 4px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        userSelect: 'none',
+        position: 'relative',
+        overflow: 'hidden',
+        border: '1px solid rgba(180,180,180,0.6)',
+        animation: isPressing
+          ? `dice-press 180ms ease-out forwards`
+          : isRolling
+            ? 'none'
+            : 'none',
+        transition: isPressing ? 'none' : 'box-shadow 150ms ease',
+        zIndex,
+      }}
+    >
+      {/* Inner bevel top-left highlight */}
+      <div style={{
+        position: 'absolute',
+        top: 4, left: 4, right: 4,
+        height: 28,
+        borderRadius: '14px 14px 50% 50%',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 100%)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Corner dots (like real D6 but subtle) */}
+      {[
+        { top: 10, left: 10 }, { top: 10, right: 10 },
+        { bottom: 10, left: 10 }, { bottom: 10, right: 10 },
+      ].map((pos, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          width: 5, height: 5,
+          borderRadius: '50%',
+          background: 'rgba(160,160,160,0.35)',
+          ...pos,
+        }} />
+      ))}
+
+      {/* Number */}
+      <span
+        key={isRolling ? `tick-${tickValue}` : `val-${value}`}
+        style={{
+          fontSize: displayNum >= 10 ? 28 : 32,
+          fontWeight: 900,
+          fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+          color: '#1a1a1a',
+          letterSpacing: '-1px',
+          lineHeight: 1,
+          animation: isRolling
+            ? `slot-tick ${TICK_INTERVAL * 2}ms ease-in-out`
+            : `dice-settle 320ms cubic-bezier(0.34,1.56,0.64,1) forwards`,
+          display: 'block',
+          position: 'relative',
+          zIndex: 2,
+          textShadow: '0 1px 0 rgba(255,255,255,0.8)',
+        }}
+      >
+        {displayNum}
+      </span>
+
+      {/* D12 label bottom */}
+      <span style={{
+        position: 'absolute',
+        bottom: 5,
+        fontSize: 8,
+        fontWeight: 700,
+        color: 'rgba(0,0,0,0.22)',
+        letterSpacing: '0.08em',
+        fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+      }}>D12</span>
+    </div>
+  );
 };
 
-const DiceShape: React.FC<{ sides: number; gradId: string; shadowId: string; highlightId: string; bevelId: string }> = ({ sides, gradId, shadowId, highlightId, bevelId }) => {
-  const sharedProps = {
-    fill: `url(#${gradId})`,
-    filter: `url(#${shadowId})`,
-    stroke: `url(#${highlightId})`,
-    strokeWidth: 1.5,
-  };
+// ── Main component ────────────────────────────────────────────
+// This component renders BOTH dice together as one unit.
+// It should be placed once in FreeCanvas, not once per die.
+// Props: pass both dice objects.
+interface FreeDicePairProps {
+  diceA: FreeDiceType;
+  diceB: FreeDiceType;
+}
 
-  // Bevel bottom-right shadow layer (offset dark copy for 3D depth)
-  const bevelProps = {
-    fill: `url(#${bevelId})`,
-    stroke: 'none',
-  };
-
-  switch (sides) {
-    case 4:
-      return (
-        <>
-          <polygon points="52,9 97,90 7,90" {...bevelProps} />
-          <polygon points="50,6 95,87 5,87" {...sharedProps} />
-          <polygon points="50,20 82,76 18,76" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        </>
-      );
-    case 6:
-      return (
-        <>
-          {/* bevel shadow */}
-          <rect x="10" y="10" width="86" height="86" rx="16" {...bevelProps} />
-          <rect x="7" y="7" width="86" height="86" rx="16" {...sharedProps} />
-          {/* inner groove */}
-          <rect x="14" y="14" width="72" height="72" rx="12" fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="1" />
-          {/* dots for D6 */}
-          {[
-            [28, 28], [72, 28],
-            [28, 50], [72, 50],
-            [28, 72], [72, 72],
-          ].map(([cx, cy], i) => (
-            <circle key={i} cx={cx} cy={cy} r="4.5" fill="rgba(0,0,0,0.18)" />
-          ))}
-        </>
-      );
-    case 8:
-      return (
-        <>
-          <polygon points="52,7 97,52 52,97 7,52" {...bevelProps} />
-          <polygon points="50,5 95,50 50,95 5,50" {...sharedProps} />
-          <polygon points="50,18 82,50 50,82 18,50" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        </>
-      );
-    case 10:
-      return (
-        <>
-          <polygon points="52,8 96,36 82,90 22,90 8,36" {...bevelProps} />
-          <polygon points="50,6 94,34 80,88 20,88 6,34" {...sharedProps} />
-          <polygon points="50,18 82,38 72,76 28,76 18,38" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        </>
-      );
-    case 12:
-      return (
-        <>
-          <polygon points="52,7 93,25 97,70 64,97 40,97 7,70 11,25" {...bevelProps} />
-          <polygon points="50,5 91,23 95,68 62,95 38,95 5,68 9,23" {...sharedProps} />
-          <polygon points="50,16 82,30 86,64 58,86 42,86 14,64 18,30" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        </>
-      );
-    case 20:
-      return (
-        <>
-          <polygon points="52,7 98,86 6,86" {...bevelProps} />
-          <polygon points="50,5 96,84 4,84" {...sharedProps} />
-          <polygon points="50,22 80,76 20,76" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-          <line x1="50" y1="22" x2="50" y2="76" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-          <line x1="50" y1="22" x2="20" y2="76" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-          <line x1="50" y1="22" x2="80" y2="76" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-        </>
-      );
-    default:
-      return <rect x="7" y="7" width="86" height="86" rx="16" {...sharedProps} />;
-  }
-};
-
-export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
+export const FreeDicePair: React.FC<FreeDicePairProps> = ({ diceA, diceB }) => {
   const moveDice = useGameStore((s) => s.moveDice);
   const moveDiceEnd = useGameStore((s) => s.moveDiceEnd);
   const rollDice = useGameStore((s) => s.rollDice);
-  const changeDiceSides = useGameStore((s) => s.changeDiceSides);
+  const removeDice = useGameStore((s) => s.removeDice);
   const bringDiceToFront = useGameStore((s) => s.bringDiceToFront);
 
   const [isRolling, setIsRolling] = useState(false);
-  const [displayValue, setDisplayValue] = useState(dice.currentValue);
+  const [isPressing, setIsPressing] = useState(false);
+  const [tickA, setTickA] = useState(diceA.currentValue);
+  const [tickB, setTickB] = useState(diceB.currentValue);
+  const [sumKey, setSumKey] = useState(0);
   const [showSidesMenu, setShowSidesMenu] = useState(false);
+
   const dragging = useRef(false);
   const hasMoved = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, dx: 0, dy: 0 });
-  const shuffleRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const theme = DICE_THEME[dice.sides] ?? DICE_THEME[6];
-  const gradId = `dg-${dice.id}`;
-  const shadowId = `ds-${dice.id}`;
-  const highlightId = `dh-${dice.id}`;
-  const glowId = `dglow-${dice.id}`;
-  const bevelId = `dbevel-${dice.id}`;
+  // Use diceA position as anchor for both
+  const x = diceA.x;
+  const y = diceA.y;
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      bringDiceToFront(dice.id);
-      dragging.current = true;
-      hasMoved.current = false;
-      dragStart.current = { mx: e.clientX, my: e.clientY, dx: dice.x, dy: dice.y };
-      setShowSidesMenu(false);
+  const stopTick = () => {
+    if (tickTimer.current) { clearInterval(tickTimer.current); tickTimer.current = null; }
+  };
 
-      const onMove = (me: MouseEvent) => {
-        if (!dragging.current) return;
-        const ddx = me.clientX - dragStart.current.mx;
-        const ddy = me.clientY - dragStart.current.my;
-        if (Math.abs(ddx) > 3 || Math.abs(ddy) > 3) hasMoved.current = true;
-        moveDice(dice.id, dragStart.current.dx + ddx, dragStart.current.dy + ddy);
-      };
-      const onUp = () => {
-        dragging.current = false;
-        if (hasMoved.current) moveDiceEnd(dice.id);
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-    },
-    [dice, bringDiceToFront, moveDice, moveDiceEnd]
-  );
+  // ── Drag ──────────────────────────────────────────────────
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    bringDiceToFront(diceA.id);
+    bringDiceToFront(diceB.id);
+    dragging.current = true;
+    hasMoved.current = false;
+    dragStart.current = { mx: e.clientX, my: e.clientY, dx: x, dy: y };
+    setShowSidesMenu(false);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (hasMoved.current || isRolling) return;
+    const onMove = (me: MouseEvent) => {
+      if (!dragging.current) return;
+      const ddx = me.clientX - dragStart.current.mx;
+      const ddy = me.clientY - dragStart.current.my;
+      if (Math.abs(ddx) > 3 || Math.abs(ddy) > 3) hasMoved.current = true;
+      const nx = dragStart.current.dx + ddx;
+      const ny = dragStart.current.dy + ddy;
+      moveDice(diceA.id, nx, ny);
+      moveDice(diceB.id, nx + 84, ny); // keep B offset
+    };
+    const onUp = () => {
+      dragging.current = false;
+      if (hasMoved.current) {
+        moveDiceEnd(diceA.id);
+        moveDiceEnd(diceB.id);
+      }
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [diceA, diceB, x, y, bringDiceToFront, moveDice, moveDiceEnd]);
 
-      setIsRolling(true);
-      let count = 0;
-      const totalFrames = 18;
-      shuffleRef.current = setInterval(() => {
-        setDisplayValue(Math.floor(Math.random() * dice.sides) + 1);
-        count++;
-        if (count >= totalFrames) {
-          if (shuffleRef.current) clearInterval(shuffleRef.current);
-          rollDice(dice.id);
-          setTimeout(() => setIsRolling(false), 200);
-        }
-      }, 50);
-    },
-    [dice.id, dice.sides, isRolling, rollDice]
-  );
+  // ── Roll both dice ─────────────────────────────────────────
+  const handleDiceClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasMoved.current || isRolling) return;
 
-  React.useEffect(() => {
-    if (!isRolling) setDisplayValue(dice.currentValue);
-  }, [dice.currentValue, isRolling]);
+    setIsPressing(true);
+    setTimeout(() => setIsPressing(false), 180);
+
+    setIsRolling(true);
+
+    // Roll both in store
+    rollDice(diceA.id);
+    rollDice(diceB.id);
+
+    // Slot machine tick
+    stopTick();
+    tickTimer.current = setInterval(() => {
+      setTickA(Math.ceil(Math.random() * 12));
+      setTickB(Math.ceil(Math.random() * 12));
+    }, TICK_INTERVAL);
+
+    if (rollTimer.current) clearTimeout(rollTimer.current);
+    rollTimer.current = setTimeout(() => {
+      stopTick();
+      setIsRolling(false);
+      setSumKey((k) => k + 1);
+    }, ROLL_DURATION);
+  }, [diceA.id, diceB.id, isRolling, rollDice]);
 
   const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -178,157 +251,97 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
     setShowSidesMenu((v) => !v);
   }, []);
 
-  const textY = dice.sides === 4 ? 66 : dice.sides === 20 ? 63 : 58;
-  const fontSize = dice.sides >= 20 ? 26 : dice.sides === 4 ? 28 : 32;
+  useEffect(() => () => {
+    if (rollTimer.current) clearTimeout(rollTimer.current);
+    stopTick();
+  }, []);
 
-  // White D6 needs darker shadow
-  const isWhite = dice.sides === 6;
+  const sum = diceA.currentValue + diceB.currentValue;
 
   return (
     <div
-      style={{ position: 'absolute', left: dice.x, top: dice.y, zIndex: dice.zIndex, userSelect: 'none' }}
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        zIndex: Math.max(diceA.zIndex, diceB.zIndex),
+        userSelect: 'none',
+      }}
       onMouseDown={handleMouseDown}
-      onClick={handleClick}
-      onContextMenu={handleRightClick}
     >
-      <motion.div
-        className="cursor-grab active:cursor-grabbing relative"
-        animate={isRolling ? {
-          rotateZ: [0, -25, 30, -40, 20, -15, 8, 0],
-          rotateX: [0, 30, -20, 40, -10, 20, 0],
-          rotateY: [0, -40, 60, -30, 50, -20, 0],
-          scale: [1, 1.25, 0.9, 1.2, 0.95, 1.1, 1],
-          y: [0, -18, 4, -12, 2, -6, 0],
-        } : { rotateX: 0, rotateY: 0, rotateZ: 0, scale: 1, y: 0 }}
-        transition={isRolling
-          ? { duration: 0.85, ease: 'easeInOut' }
-          : { type: 'spring', stiffness: 380, damping: 22 }}
-        style={{ transformStyle: 'preserve-3d', perspective: 500 }}
-        whileHover={!isRolling ? { scale: 1.12, y: -3 } : {}}
-      >
-        {/* 外層光暈 */}
-        <motion.div
-          animate={isRolling
-            ? { opacity: [0.4, 1, 0.6, 1, 0.5, 1, 0.3], scale: [1, 1.6, 1.2, 1.5, 1.1, 1.3, 1] }
-            : { opacity: isWhite ? 0.15 : 0.25, scale: 1 }}
-          transition={isRolling ? { duration: 0.85 } : { duration: 0.3 }}
-          style={{
-            position: 'absolute', inset: -12, borderRadius: '50%',
-            background: `radial-gradient(circle, ${isWhite ? '#aaaaaa' : theme.glow}55 0%, transparent 70%)`,
-            pointerEvents: 'none', zIndex: -1,
-          }}
-        />
+      {/* Dice pair container */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
 
-        <svg width={88} height={88} viewBox="0 0 100 100" style={{ overflow: 'visible', display: 'block' }}>
-          <defs>
-            {/* Main gradient */}
-            <radialGradient id={gradId} cx="30%" cy="22%" r="75%">
-              <stop offset="0%" stopColor={theme.from} />
-              <stop offset="50%" stopColor={theme.mid} />
-              <stop offset="100%" stopColor={theme.to} />
-            </radialGradient>
-            {/* Bevel bottom-right dark gradient */}
-            <radialGradient id={bevelId} cx="70%" cy="75%" r="60%">
-              <stop offset="0%" stopColor={isWhite ? 'rgba(100,100,100,0.55)' : 'rgba(0,0,0,0.55)'} />
-              <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-            </radialGradient>
-            {/* Top-left highlight border */}
-            <linearGradient id={highlightId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={isWhite ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.45)'} />
-              <stop offset="45%" stopColor={isWhite ? 'rgba(220,220,220,0.4)' : 'rgba(255,255,255,0.10)'} />
-              <stop offset="100%" stopColor={isWhite ? 'rgba(150,150,150,0.15)' : 'rgba(255,255,255,0.02)'} />
-            </linearGradient>
-            {/* Drop shadow */}
-            <filter id={shadowId} x="-25%" y="-25%" width="150%" height="150%">
-              <feDropShadow dx="2" dy="5" stdDeviation="5" floodColor={isWhite ? '#888888' : theme.glow} floodOpacity={isWhite ? '0.45' : '0.55'} />
-              <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="rgba(0,0,0,0.4)" floodOpacity="1" />
-            </filter>
-            {/* Glow filter for number when rolling */}
-            <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-          </defs>
-
-          <DiceShape sides={dice.sides} gradId={gradId} shadowId={shadowId} highlightId={highlightId} bevelId={bevelId} />
-
-          {/* Top-left specular highlight */}
-          <ellipse cx="36" cy="28" rx="15" ry="9"
-            fill={isWhite ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.18)'}
-            style={{ pointerEvents: 'none' }}
+        {/* Two dice side by side */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <SingleDie
+            value={diceA.currentValue}
+            isRolling={isRolling}
+            tickValue={tickA}
+            isPressing={isPressing}
+            onInteract={handleDiceClick}
+            onRightClick={handleRightClick}
+            zIndex={diceA.zIndex}
           />
-          {/* Secondary softer highlight */}
-          <ellipse cx="30" cy="24" rx="7" ry="4"
-            fill={isWhite ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.10)'}
-            style={{ pointerEvents: 'none' }}
+          <SingleDie
+            value={diceB.currentValue}
+            isRolling={isRolling}
+            tickValue={tickB}
+            isPressing={isPressing}
+            onInteract={handleDiceClick}
+            onRightClick={handleRightClick}
+            zIndex={diceB.zIndex}
           />
+        </div>
 
-          {/* Number (hide for D6 since dots show instead) */}
-          {dice.sides !== 6 && (
-            <text
-              x="50" y={textY}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={fontSize}
-              fontWeight="900"
-              fill={theme.textColor}
-              filter={isRolling ? `url(#${glowId})` : undefined}
-              style={{
-                fontFamily: '"Courier New", monospace',
-                letterSpacing: '-1px',
-                paintOrder: 'stroke fill',
-                stroke: isWhite ? 'transparent' : 'rgba(0,0,0,0.25)',
-                strokeWidth: 2,
-              }}
-            >
-              {displayValue}
-            </text>
-          )}
-
-          {/* For D6: show number on top of dots */}
-          {dice.sides === 6 && (
-            <text
-              x="50" y={textY}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={28}
-              fontWeight="900"
-              fill="rgba(0,0,0,0.55)"
-              filter={isRolling ? `url(#${glowId})` : undefined}
-              style={{ fontFamily: '"Courier New", monospace', letterSpacing: '-1px' }}
-            >
-              {displayValue}
-            </text>
-          )}
-
-          {/* D{n} label */}
-          <text x="50" y="93" textAnchor="middle" fontSize="8.5"
-            fill={isWhite ? 'rgba(0,0,0,0.30)' : 'rgba(255,255,255,0.30)'}
-            fontWeight="700" letterSpacing="0.5"
-          >
-            D{dice.sides}
-          </text>
-        </svg>
-
-        {/* Ground shadow */}
+        {/* Sum display */}
         <div style={{
-          position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)',
-          width: 48, height: 8, borderRadius: '50%',
-          background: `radial-gradient(ellipse, ${isWhite ? '#88888840' : theme.glow + '40'} 0%, transparent 70%)`,
-          filter: 'blur(3px)',
-          pointerEvents: 'none',
-        }} />
-      </motion.div>
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 14px',
+          background: 'rgba(0,0,0,0.55)',
+          borderRadius: 20,
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.10)',
+        }}>
+          <span style={{
+            fontSize: 10,
+            color: 'rgba(255,255,255,0.45)',
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+          }}>
+            {isRolling ? `${tickA} + ${tickB}` : `${diceA.currentValue} + ${diceB.currentValue}`}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>=</span>
+          <span
+            key={sumKey}
+            style={{
+              fontSize: 15,
+              fontWeight: 900,
+              color: '#ffffff',
+              fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+              animation: !isRolling ? `sum-pop 280ms cubic-bezier(0.34,1.56,0.64,1) forwards` : 'none',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            {isRolling ? tickA + tickB : sum}
+          </span>
+        </div>
 
-      {/* Hint text */}
-      <div style={{
-        textAlign: 'center', fontSize: 9, color: 'rgba(255,255,255,0.22)',
-        marginTop: 3, userSelect: 'none', letterSpacing: '0.03em',
-      }}>
-        點擊搖骰 · 右鍵換面數
+        {/* Hint */}
+        <div style={{
+          fontSize: 9,
+          color: 'rgba(255,255,255,0.20)',
+          letterSpacing: '0.04em',
+          fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+        }}>
+          點擊搖骰 · 右鍵選單
+        </div>
       </div>
 
-      {/* Sides menu */}
+      {/* Context menu */}
       <AnimatePresence>
         {showSidesMenu && (
           <motion.div
@@ -337,67 +350,66 @@ export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
             exit={{ opacity: 0, scale: 0.88, y: -6 }}
             transition={{ type: 'spring', stiffness: 400, damping: 28 }}
             style={{
-              position: 'absolute', top: 0, left: 96,
+              position: 'absolute',
+              top: 0,
+              left: 172,
               background: 'rgba(10,10,20,0.97)',
-              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(255,255,255,0.10)',
               borderRadius: 14,
-              boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
               padding: '6px 4px',
               minWidth: 140,
               zIndex: 50,
             }}
             onMouseLeave={() => setShowSidesMenu(false)}
           >
-            <div style={{ padding: '4px 12px 6px', fontSize: 10, color: 'rgba(255,255,255,0.28)', fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-              骰子面數
+            <div style={{
+              padding: '4px 12px 6px',
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.28)',
+              fontWeight: 700,
+              letterSpacing: '0.10em',
+              textTransform: 'uppercase',
+              fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+            }}>
+              骰子選項
             </div>
-            {DICE_SIDES.map((s) => {
-              const t = DICE_THEME[s];
-              const isActive = dice.sides === s;
-              const isW = s === 6;
-              return (
-                <button
-                  key={s}
-                  onClick={(e) => { e.stopPropagation(); changeDiceSides(dice.id, s); setShowSidesMenu(false); }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '7px 12px', border: 'none', borderRadius: 8,
-                    background: isActive ? (isW ? 'rgba(220,220,220,0.18)' : `${t.glow}25`) : 'transparent',
-                    color: isActive ? (isW ? '#f0f0f0' : t.accent) : 'rgba(255,255,255,0.65)',
-                    fontSize: 13, fontWeight: isActive ? 800 : 500,
-                    cursor: 'pointer', transition: 'all 120ms',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLElement).style.background = isW ? 'rgba(220,220,220,0.10)' : `${t.glow}18`;
-                      (e.currentTarget as HTMLElement).style.color = isW ? '#f0f0f0' : t.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLElement).style.background = 'transparent';
-                      (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)';
-                    }
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{
-                      width: 10, height: 10, borderRadius: 3,
-                      background: `linear-gradient(135deg, ${t.from}, ${t.to})`,
-                      boxShadow: isW ? '0 0 6px rgba(180,180,180,0.5)' : `0 0 6px ${t.glow}60`,
-                      flexShrink: 0,
-                      border: isW ? '1px solid rgba(0,0,0,0.15)' : 'none',
-                    }} />
-                    D{s}
-                  </span>
-                  {isActive && <span style={{ color: isW ? '#ccc' : t.accent, fontSize: 11 }}>✓</span>}
-                </button>
-              );
-            })}
+
+            <button
+              onClick={(e) => { e.stopPropagation(); removeDice(diceA.id); removeDice(diceB.id); }}
+              style={{
+                width: '100%',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 12px', border: 'none', borderRadius: 8,
+                background: 'transparent',
+                color: 'rgba(255,100,100,0.7)',
+                fontSize: 13, fontWeight: 500,
+                cursor: 'pointer', transition: 'all 120ms',
+                fontFamily: '"SF Pro Display", "Helvetica Neue", sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(255,80,80,0.12)';
+                (e.currentTarget as HTMLElement).style.color = '#ff6b6b';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = 'transparent';
+                (e.currentTarget as HTMLElement).style.color = 'rgba(255,100,100,0.7)';
+              }}
+            >
+              🗑️ 移除骰子
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
+};
+
+// ── Legacy single die export (for backward compat) ────────────
+export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
+  // This is kept for backward compatibility but the pair version is preferred.
+  // In FreeCanvas, replace two <FreeDice> with one <FreeDicePair>.
+  return null;
 };

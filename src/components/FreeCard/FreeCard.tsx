@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FreeCard as FreeCardType } from '../../types/game';
 import { useGameStore } from '../../store/gameStore';
+import { isInDiscardZone } from '../FreeCanvas/FreeCanvas';
 
 const DEFAULT_BACK = 'https://images.unsplash.com/photo-1614294149010-950b698f72c0?q=80&w=400&auto=format&fit=crop';
 
@@ -21,8 +22,20 @@ interface EditState {
   type: string;
 }
 
-// ← 新增 deckBackImage prop
-export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; deckBackImage?: string }> = ({ card, theme = 'night', deckBackImage }) => {
+interface FreeCardProps {
+  card: FreeCardType;
+  theme?: 'day' | 'night';
+  deckBackImage?: string;
+  /** Called during drag to let canvas highlight the discard zone */
+  onDiscardHoverChange?: (hovering: boolean) => void;
+}
+
+export const FreeCard: React.FC<FreeCardProps> = ({
+  card,
+  theme = 'night',
+  deckBackImage,
+  onDiscardHoverChange,
+}) => {
   const moveCard = useGameStore((s) => s.moveCard);
   const moveCardEnd = useGameStore((s) => s.moveCardEnd);
   const flipCard = useGameStore((s) => s.flipCard);
@@ -30,6 +43,7 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
   const removeCard = useGameStore((s) => s.removeCard);
   const bringToFront = useGameStore((s) => s.bringToFront);
   const updateFreeCard = useGameStore((s) => s.updateFreeCard);
+  const discardCard = useGameStore((s) => s.discardCard);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -46,6 +60,7 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
   const dragging = useRef(false);
   const dragStart = useRef({ mx: 0, my: 0, cx: 0, cy: 0 });
   const hasMoved = useRef(false);
+  const inDiscard = useRef(false);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -55,6 +70,7 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
       bringToFront(card.instanceId);
       dragging.current = true;
       hasMoved.current = false;
+      inDiscard.current = false;
       dragStart.current = { mx: e.clientX, my: e.clientY, cx: card.x, cy: card.y };
       setContextMenu(null);
 
@@ -63,18 +79,42 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
         const dx = me.clientX - dragStart.current.mx;
         const dy = me.clientY - dragStart.current.my;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved.current = true;
-        moveCard(card.instanceId, dragStart.current.cx + dx, dragStart.current.cy + dy);
+
+        const newX = dragStart.current.cx + dx;
+        const newY = dragStart.current.cy + dy;
+        moveCard(card.instanceId, newX, newY);
+
+        // Check if card centre is over discard zone
+        const cardCentreX = newX + 37;  // CARD_W / 2
+        const cardCentreY = newY + 45;  // CARD_H / 2
+        const hovering = isInDiscardZone(cardCentreX, cardCentreY);
+        if (hovering !== inDiscard.current) {
+          inDiscard.current = hovering;
+          onDiscardHoverChange?.(hovering);
+        }
       };
+
       const onUp = () => {
         dragging.current = false;
-        if (hasMoved.current) moveCardEnd(card.instanceId);
+        onDiscardHoverChange?.(false);
+
+        if (hasMoved.current) {
+          // Drop onto discard zone → discard the card
+          if (inDiscard.current) {
+            discardCard(card.instanceId);
+          } else {
+            moveCardEnd(card.instanceId);
+          }
+        }
+        inDiscard.current = false;
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       };
+
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [card, bringToFront, moveCard, moveCardEnd]
+    [card, bringToFront, moveCard, moveCardEnd, discardCard, onDiscardHoverChange]
   );
 
   const handleClick = useCallback(
@@ -108,7 +148,6 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
     setIsEditing(false);
   };
 
-  // ← 優先用牌組封面，其次用卡片自己存的，最後用預設
   const backSrc = deckBackImage ?? card.backImage ?? DEFAULT_BACK;
   const backBg = `url(${backSrc})`;
 
@@ -138,11 +177,11 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
             animate={{ rotateY: card.isFlipped ? 180 : 0 }}
             transition={{ duration: 0.5, type: 'spring', stiffness: 280, damping: 22 }}
           >
-            {/* Front（資訊面） */}
+            {/* Front */}
             <div
               className={`absolute inset-0 rounded-lg border-2 overflow-hidden shadow-xl flex flex-col ${theme === 'day'
-                ? 'border-amber-400 bg-amber-50'
-                : 'border-violet-400/80 bg-[#1e1535]'
+                  ? 'border-amber-400 bg-amber-50'
+                  : 'border-violet-400/80 bg-[#1e1535]'
                 }`}
               style={{
                 backfaceVisibility: 'hidden',
@@ -151,14 +190,20 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
                 backgroundPosition: 'center',
               }}
             >
-              {/* 有插圖時加遮罩 */}
               {card.backImage && (
                 <div className="absolute inset-0 bg-black/55 rounded-lg" />
               )}
               <div className="absolute inset-0 p-1 flex flex-col" style={{ position: 'relative', zIndex: 1 }}>
                 <div className="flex justify-between items-start">
                   <span className="text-[12px] font-black leading-tight truncate text-white">{card.name}</span>
-                  <span className={`text-[12px] shrink-0 ml-0.5 px-0.5 rounded font-bold ${theme === 'day' ? 'bg-amber-200 text-amber-800' : 'bg-violet-900/60 text-violet-300'}`}>{card.type[0].toUpperCase()}</span>
+                  <span
+                    className={`text-[12px] shrink-0 ml-0.5 px-0.5 rounded font-bold ${theme === 'day'
+                        ? 'bg-amber-200 text-amber-800'
+                        : 'bg-violet-900/60 text-violet-300'
+                      }`}
+                  >
+                    {card.type[0].toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex-1 text-[10px] leading-tight overflow-hidden mt-0.5 text-gray-200">
                   {card.description}
@@ -186,7 +231,11 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
             {/* Back */}
             <div
               className="absolute inset-0 rounded-lg border-2 border-white/20 shadow-xl bg-cover bg-center bg-no-repeat"
-              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', backgroundImage: backBg }}
+              style={{
+                backfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)',
+                backgroundImage: backBg,
+              }}
             >
               <div className="absolute inset-0 bg-black/30 rounded-lg" />
               <div className="absolute inset-1 border border-white/10 rounded-md" />
@@ -194,7 +243,6 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
           </motion.div>
         </motion.div>
 
-        {/* Hint */}
         <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] text-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
           點擊翻面 · 右鍵選單
         </div>
@@ -213,15 +261,53 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
             onMouseLeave={() => setContextMenu(null)}
           >
             {[
-              { label: '🔄 翻面', action: () => { flipCard(card.instanceId); setContextMenu(null); } },
-              { label: '↩️ 旋轉 +90°', action: () => { rotateCard(card.instanceId, 90); setContextMenu(null); } },
-              { label: '↪️ 旋轉 -90°', action: () => { rotateCard(card.instanceId, -90); setContextMenu(null); } },
-              { label: '✏️ 編輯卡牌', action: () => { setEditState({ name: card.name, description: card.description, backImage: card.backImage || '', attack: String(card.attack ?? ''), health: String(card.health ?? ''), value: String(card.value ?? ''), type: card.type }); setIsEditing(true); setContextMenu(null); } },
-              { label: '🗑️ 移除', action: () => { removeCard(card.instanceId); setContextMenu(null); }, danger: true },
+              {
+                label: '🔄 翻面',
+                action: () => { flipCard(card.instanceId); setContextMenu(null); },
+              },
+              {
+                label: '↩️ 旋轉 +90°',
+                action: () => { rotateCard(card.instanceId, 90); setContextMenu(null); },
+              },
+              {
+                label: '↪️ 旋轉 -90°',
+                action: () => { rotateCard(card.instanceId, -90); setContextMenu(null); },
+              },
+              {
+                label: '✏️ 編輯卡牌',
+                action: () => {
+                  setEditState({
+                    name: card.name,
+                    description: card.description,
+                    backImage: card.backImage || '',
+                    attack: String(card.attack ?? ''),
+                    health: String(card.health ?? ''),
+                    value: String(card.value ?? ''),
+                    type: card.type,
+                  });
+                  setIsEditing(true);
+                  setContextMenu(null);
+                },
+              },
+              {
+                label: '🗂️ 棄入棄牌區',
+                action: () => { discardCard(card.instanceId); setContextMenu(null); },
+                discard: true,
+              },
+              {
+                label: '🗑️ 移除',
+                action: () => { removeCard(card.instanceId); setContextMenu(null); },
+                danger: true,
+              },
             ].map((item) => (
               <button
                 key={item.label}
-                className={`w-full text-left px-4 py-2 text-sm transition-colors ${item.danger ? 'text-red-400 hover:bg-red-500/20' : 'text-white/80 hover:bg-white/10'}`}
+                className={`w-full text-left px-4 py-2 text-sm transition-colors ${(item as any).danger
+                    ? 'text-red-400 hover:bg-red-500/20'
+                    : (item as any).discard
+                      ? 'text-amber-400 hover:bg-amber-500/20'
+                      : 'text-white/80 hover:bg-white/10'
+                  }`}
                 onClick={item.action}
               >
                 {item.label}
@@ -278,24 +364,49 @@ export const FreeCard: React.FC<{ card: FreeCardType; theme?: 'day' | 'night'; d
                     <>
                       <div className="flex-1">
                         <label className="text-xs text-white/50 mb-1 block">攻擊</label>
-                        <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500" type="number" value={editState.attack} onChange={(e) => setEditState((s) => ({ ...s, attack: e.target.value }))} />
+                        <input
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
+                          type="number"
+                          value={editState.attack}
+                          onChange={(e) => setEditState((s) => ({ ...s, attack: e.target.value }))}
+                        />
                       </div>
                       <div className="flex-1">
                         <label className="text-xs text-white/50 mb-1 block">生命</label>
-                        <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500" type="number" value={editState.health} onChange={(e) => setEditState((s) => ({ ...s, health: e.target.value }))} />
+                        <input
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
+                          type="number"
+                          value={editState.health}
+                          onChange={(e) => setEditState((s) => ({ ...s, health: e.target.value }))}
+                        />
                       </div>
                     </>
                   ) : (
                     <div className="flex-1">
                       <label className="text-xs text-white/50 mb-1 block">數值</label>
-                      <input className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500" type="number" value={editState.value} onChange={(e) => setEditState((s) => ({ ...s, value: e.target.value }))} />
+                      <input
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
+                        type="number"
+                        value={editState.value}
+                        onChange={(e) => setEditState((s) => ({ ...s, value: e.target.value }))}
+                      />
                     </div>
                   )}
                 </div>
               </div>
               <div className="flex gap-2 mt-5">
-                <button className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 rounded-lg transition-colors" onClick={handleSaveEdit}>儲存</button>
-                <button className="flex-1 bg-white/5 hover:bg-white/10 text-white/70 font-bold py-2 rounded-lg transition-colors" onClick={() => setIsEditing(false)}>取消</button>
+                <button
+                  className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 rounded-lg transition-colors"
+                  onClick={handleSaveEdit}
+                >
+                  儲存
+                </button>
+                <button
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white/70 font-bold py-2 rounded-lg transition-colors"
+                  onClick={() => setIsEditing(false)}
+                >
+                  取消
+                </button>
               </div>
             </motion.div>
           </motion.div>

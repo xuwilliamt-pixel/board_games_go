@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { FreeCard } from '../FreeCard/FreeCard';
-import { FreeDice } from '../FreeDice/FreeDice';
+import { FreeDicePair } from '../FreeDice/FreeDice';
 import { FreePiece } from '../FreePiece/FreePiece';
 import { BoardGrid } from '../BoardGrid/BoardGrid';
 
 interface FreeCanvasProps { theme: 'day' | 'night'; }
 
 export const CARD_W = 74;
-export const ZONE_W = CARD_W * 2 + 4;   // 152px — 2 cards wide
+export const ZONE_W = CARD_W * 2 + 4;
 const Z_GAP = 8;
 
-// ── Layout calculation (pure function, no side-effects) ────────
 export function calcBoardLayout(canvasW = 0, canvasH = 0) {
   if (!canvasW) canvasW = window.innerWidth;
   if (!canvasH) canvasH = window.innerHeight - 56;
@@ -36,18 +35,44 @@ export function calcBoardLayout(canvasW = 0, canvasH = 0) {
   const pieceL = boardLeft + boardW + Z_GAP;
   const pieceW = ZONE_W;
 
-  return { canvasW, canvasH, boardLeft, boardTop, boardW, boardH, handL, handW, pieceL, pieceW, cellSize };
+  const handZoneH = boardH;
+  const handH = Math.floor(handZoneH / 2);
+  const discardH = handZoneH - handH;
+  const discardTop = boardTop + handH;
+
+  return {
+    canvasW, canvasH,
+    boardLeft, boardTop, boardW, boardH,
+    handL, handW, handH,
+    discardTop, discardH,
+    pieceL, pieceW,
+    cellSize,
+  };
+}
+
+export function isInDiscardZone(x: number, y: number): boolean {
+  const l = calcBoardLayout();
+  return (
+    x >= l.handL &&
+    x <= l.handL + l.handW &&
+    y >= l.discardTop &&
+    y <= l.discardTop + l.discardH
+  );
 }
 
 export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
   const freeCards = useGameStore((s) => s.freeCards);
   const freeDice = useGameStore((s) => s.freeDice);
   const boardPieces = useGameStore((s) => s.boardPieces);
+  const discardPile = useGameStore((s) => s.discardPile);
   const placeCardFromDeck = useGameStore((s) => s.placeCardFromDeck);
+  const restoreDiscardPile = useGameStore((s) => s.restoreDiscardPile);
   const decks = useGameStore((s) => s.decks);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  const [discardHover, setDiscardHover] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -63,7 +88,7 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
     canvasSize.w || undefined,
     canvasSize.h || undefined,
   );
-  const { boardLeft, boardTop, boardH, handL, handW, pieceL, pieceW } = layout;
+  const { boardLeft, boardTop, boardW, boardH, handL, handW, handH, discardTop, discardH, pieceL, pieceW } = layout;
 
   const spawnCard = useCallback((deckId: string) => {
     const l = calcBoardLayout(
@@ -84,6 +109,11 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
     const id = Object.keys(decks)[0];
     if (id) spawnCard(id);
   }, [decks, spawnCard]);
+
+  const handleRestoreConfirm = () => {
+    restoreDiscardPile();
+    setConfirmRestore(false);
+  };
 
   const isDark = theme === 'night';
 
@@ -117,6 +147,16 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
     ? '0 0 32px rgba(255,157,66,0.18), inset 0 0 14px rgba(255,157,66,0.04)'
     : '0 0 18px rgba(224,122,32,0.14)';
 
+  const discardBorder = discardHover
+    ? (isDark ? 'rgba(255,160,50,0.85)' : 'rgba(200,110,10,0.75)')
+    : (isDark ? 'rgba(255,160,50,0.45)' : 'rgba(200,110,10,0.38)');
+  const discardBg = discardHover
+    ? (isDark ? 'rgba(255,160,50,0.14)' : 'rgba(255,160,50,0.10)')
+    : (isDark ? 'rgba(255,160,50,0.06)' : 'rgba(255,160,50,0.04)');
+  const discardShadow = discardHover
+    ? (isDark ? '0 0 24px rgba(255,160,50,0.28)' : '0 0 16px rgba(200,110,10,0.18)')
+    : 'none';
+
   const zoneLabelStyle: React.CSSProperties = {
     position: 'absolute',
     top: 10,
@@ -131,6 +171,13 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
     pointerEvents: 'none',
   };
 
+  // ── 將 freeDice 配對成一組組 FreeDicePair ──────────────────
+  // 策略：每兩顆一組（index 0+1, 2+3, ...），若奇數顆則最後一顆略過
+  const dicePairs: Array<{ a: (typeof freeDice)[0]; b: (typeof freeDice)[0] }> = [];
+  for (let i = 0; i + 1 < freeDice.length; i += 2) {
+    dicePairs.push({ a: freeDice[i], b: freeDice[i + 1] });
+  }
+
   return (
     <div
       ref={containerRef}
@@ -139,19 +186,17 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
       style={{ ...bg, transition: 'background-color 0.5s' }}
       onDoubleClick={handleDoubleClick}
     >
-      {/* ── Hand Zone ── */}
+      {/* ── Hand Zone (top half) ── */}
       {handW > 20 && (
         <div
           className="pointer-events-none absolute"
           style={{
-            left: handL,
-            top: boardTop,
-            width: handW,
-            height: boardH,
+            left: handL, top: boardTop, width: handW, height: handH,
             border: `1.5px dashed ${handBorder}`,
+            borderBottom: 'none',
             background: handBg,
             backdropFilter: 'blur(4px)',
-            borderRadius: 16,
+            borderRadius: '16px 16px 0 0',
             transition: 'left 0.3s, width 0.3s, top 0.3s, height 0.3s',
           }}
         >
@@ -159,19 +204,109 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
         </div>
       )}
 
+      {/* ── Discard Zone (bottom half) ── */}
+      {handW > 20 && (
+        <div
+          data-discard-zone="true"
+          className="absolute overflow-hidden"
+          style={{
+            left: handL, top: discardTop, width: handW, height: discardH,
+            border: `1.5px dashed ${discardBorder}`,
+            background: discardBg,
+            backdropFilter: 'blur(4px)',
+            borderRadius: '0 0 16px 16px',
+            boxShadow: discardShadow,
+            transition: 'left 0.3s, width 0.3s, top 0.3s, height 0.3s, border-color 0.2s, background 0.2s, box-shadow 0.2s',
+            display: 'flex',
+            flexDirection: 'column',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{
+            ...zoneLabelStyle, position: 'relative', top: 'unset', left: 'unset', right: 'unset',
+            padding: '8px 6px 4px',
+            color: isDark ? 'rgba(255,160,50,0.8)' : 'rgba(160,90,10,0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0,
+          }}>
+            <span>🗂️ 棄牌區</span>
+            {discardPile.length > 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 800,
+                background: isDark ? 'rgba(255,160,50,0.2)' : 'rgba(255,160,50,0.15)',
+                border: `1px solid ${isDark ? 'rgba(255,160,50,0.4)' : 'rgba(200,110,10,0.3)'}`,
+                borderRadius: 99, padding: '0 6px',
+                color: isDark ? '#FFBB55' : '#A05A0A',
+              }}>
+                {discardPile.length}
+              </span>
+            )}
+          </div>
+
+          <div style={{
+            flex: 1, overflowY: 'auto', padding: '0 6px 4px',
+            display: 'flex', flexDirection: 'column', gap: 3, pointerEvents: 'auto',
+          }}>
+            {discardPile.length === 0 ? (
+              <div style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, color: isDark ? 'rgba(255,160,50,0.35)' : 'rgba(160,90,10,0.4)',
+                fontWeight: 500, textAlign: 'center', padding: '8px 4px', userSelect: 'none',
+              }}>
+                拖曳卡牌至此<br />棄入此區
+              </div>
+            ) : (
+              discardPile.map((dc) => (
+                <div key={dc.instanceId} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '4px 6px', borderRadius: 8,
+                  background: isDark ? 'rgba(255,160,50,0.08)' : 'rgba(255,160,50,0.07)',
+                  border: `1px solid ${isDark ? 'rgba(255,160,50,0.2)' : 'rgba(200,110,10,0.2)'}`,
+                  fontSize: 11, fontWeight: 500,
+                  color: isDark ? 'rgba(255,220,140,0.9)' : '#7A4A08', flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: 10, opacity: 0.6 }}>🃏</span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {dc.name}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {discardPile.length > 0 && (
+            <div style={{ padding: '4px 6px 8px', flexShrink: 0, pointerEvents: 'auto' }}>
+              <button
+                style={{
+                  width: '100%', padding: '6px 0', borderRadius: 8,
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  background: isDark ? 'rgba(255,160,50,0.16)' : 'rgba(255,160,50,0.13)',
+                  border: `1.5px solid ${isDark ? 'rgba(255,160,50,0.4)' : 'rgba(200,110,10,0.35)'}`,
+                  color: isDark ? '#FFBB55' : '#9A5200',
+                  transition: 'all 150ms',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,160,50,0.28)' : 'rgba(255,160,50,0.22)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = isDark ? 'rgba(255,160,50,0.16)' : 'rgba(255,160,50,0.13)';
+                }}
+                onClick={() => setConfirmRestore(true)}
+              >
+                ♻️ 回復全部牌組
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Piece Zone ── */}
       <div
         className="pointer-events-none absolute"
         style={{
-          left: pieceL,
-          top: boardTop,
-          width: pieceW,
-          height: boardH,
+          left: pieceL, top: boardTop, width: pieceW, height: boardH,
           border: `2px solid ${pieceBorder}`,
-          background: pieceBg,
-          backdropFilter: 'blur(4px)',
-          borderRadius: 16,
-          boxShadow: pieceShadow,
+          background: pieceBg, backdropFilter: 'blur(4px)',
+          borderRadius: 16, boxShadow: pieceShadow,
           transition: 'left 0.3s, top 0.3s, height 0.3s',
         }}
       >
@@ -181,12 +316,7 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
       {/* ── Board ── */}
       <div
         className="absolute pointer-events-none"
-        style={{
-          left: boardLeft,
-          top: boardTop,
-          zIndex: 2,
-          transition: 'left 0.3s, top 0.3s',
-        }}
+        style={{ left: boardLeft, top: boardTop, zIndex: 2, transition: 'left 0.3s, top 0.3s' }}
       >
         <div className="pointer-events-auto">
           <BoardGrid theme={theme} canvasSize={canvasSize} />
@@ -194,17 +324,83 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
       </div>
 
       {/* ── Floating elements ── */}
-      {freeDice.map((d) => <FreeDice key={d.id} dice={d} />)}
+
+      {/* 骰子：每兩顆配成一組 FreeDicePair */}
+      {dicePairs.map(({ a, b }) => (
+        <FreeDicePair key={`pair-${a.id}-${b.id}`} diceA={a} diceB={b} />
+      ))}
+
       {boardPieces.map((p) => <FreePiece key={p.id} piece={p} />)}
+
       {freeCards.map((c) => (
         <FreeCard
           key={c.instanceId}
           card={c}
           theme={theme}
-          // ← 動態從牌組讀封面，改了封面場上卡片即時更新
           deckBackImage={c.sourceDeckId ? decks[c.sourceDeckId]?.backImage : undefined}
+          onDiscardHoverChange={setDiscardHover}
         />
       ))}
+
+      {/* ── Confirm Restore Modal ── */}
+      {confirmRestore && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+          }}
+          onClick={() => setConfirmRestore(false)}
+        >
+          <div
+            style={{
+              background: '#12121f',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 20, padding: '28px 24px', width: 300,
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 28, textAlign: 'center', marginBottom: 8 }}>♻️</div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#fff', textAlign: 'center', marginBottom: 8 }}>
+              回復棄牌區？
+            </h3>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 22, lineHeight: 1.6 }}>
+              將 {discardPile.length} 張棄牌全數放回<br />原本的牌組，棄牌區會清空。
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 10,
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  background: 'rgba(255,160,50,0.18)',
+                  border: '1.5px solid rgba(255,160,50,0.4)',
+                  color: '#FFBB55', transition: 'all 150ms',
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,160,50,0.32)')}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,160,50,0.18)')}
+                onClick={handleRestoreConfirm}
+              >
+                確認回復
+              </button>
+              <button
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 10,
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1.5px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.5)', transition: 'all 150ms',
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)')}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)')}
+                onClick={() => setConfirmRestore(false)}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

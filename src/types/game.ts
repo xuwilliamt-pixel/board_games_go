@@ -76,6 +76,21 @@ export interface BoardPiece {
   zIndex: number;
 }
 
+/** A card that has been discarded — carries the deck it came from */
+export interface DiscardCard {
+  instanceId: string;    // 原 FreeCard.instanceId（唯一 key）
+  id: string;            // 原 Card.id（template id）
+  name: string;
+  description: string;
+  type: CardType;
+  originDeckId: string;  // 回復時回去的 deckId
+  backImage?: string;
+  frontImage?: string;
+  value?: number;
+  attack?: number;
+  health?: number;
+}
+
 export interface GameState {
   decks: Record<string, Deck>;
   cards: Record<string, Card>;
@@ -86,4 +101,5 @@ export interface GameState {
   characters: Character[];
   boardPieces: BoardPiece[];
   round: number;          // ← 新增，回合數同步用
+  discardPile: DiscardCard[];
 }

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ref, onValue, update, off } from 'firebase/database';
 import { db } from '../firebase';
-import type { GameState, Card, Deck, FreeCard, FreeDice, DiceResult, Character, BoardPiece } from '../types/game';
+import type { GameState, Card, Deck, FreeCard, FreeDice, DiceResult, Character, BoardPiece, DiscardCard } from '../types/game';
 import defaultCardBack from '../assets/DigitalMonster.jpg';
 
 // ── 房間 ID ────────────────────────────────────────────────────
@@ -17,8 +17,6 @@ const DEFAULT_BACK_IMAGE = defaultCardBack;
 const genId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
 // ── Firebase Array 修復工具 ────────────────────────────────────
-// Firebase 在 array 有元素被刪除時，會把它存成 object（{0:..., 2:...}）
-// 這個 helper 確保從 Firebase 拿回來的資料都是真正的 array
 const toArray = <T>(val: unknown, fallback: T[]): T[] => {
   if (!val) return fallback;
   if (Array.isArray(val)) return val;
@@ -90,6 +88,7 @@ const initialDecks: Record<string, Deck> = {
   'deck-1': { id: 'deck-1', name: 'Starter Deck', cards: defaultDeckCards, backImage: DEFAULT_BACK_IMAGE },
 };
 
+// ── 預設兩顆 D12，並排放置 ────────────────────────────────────
 const getInitialDice = (): FreeDice[] => {
   const GAP = 10;
   const LEFT_W = 240, RIGHT_W = 320;
@@ -102,8 +101,13 @@ const getInitialDice = (): FreeDice[] => {
   const cell = Math.max(70, Math.min(110, Math.min(cellFromW, cellFromH)));
   const boardW = cell * 5 + GAP * 4 + 32;
   const boardLeft = Math.round((canvasW - boardW) / 2);
-  const diceX = boardLeft + Math.round(boardW / 2) - 340;
-  return [{ id: 'dice-initial', x: diceX, y: 100, sides: 12, currentValue: 1, isRolling: false, zIndex: 8 }];
+  // 骰子置於畫面中央上方
+  const diceX = boardLeft + Math.round(boardW / 2) - 84; // 兩顆中心對齊
+  const diceY = 80;
+  return [
+    { id: 'dice-a', x: diceX, y: diceY, sides: 12, currentValue: 6, isRolling: false, zIndex: 8 },
+    { id: 'dice-b', x: diceX + 84, y: diceY, sides: 12, currentValue: 6, isRolling: false, zIndex: 8 },
+  ];
 };
 
 const initialState: GameState = {
@@ -116,25 +120,23 @@ const initialState: GameState = {
   characters: initialCharacters,
   boardPieces: getInitialBoardPieces(),
   round: 1,
+  discardPile: [],
 };
 
-type SyncableState = Pick<GameState, 'freeCards' | 'freeDice' | 'diceHistory' | 'topZIndex' | 'characters' | 'boardPieces' | 'decks' | 'round' | 'cards'>;
+type SyncableState = Pick<GameState, 'freeCards' | 'freeDice' | 'diceHistory' | 'topZIndex' | 'characters' | 'boardPieces' | 'decks' | 'round' | 'cards' | 'discardPile'>;
 
-// ── Firebase 寫入 ──────────────────────────────────────────────
 const syncToFirebase = (patch: Partial<SyncableState>) => {
   const gameRef = ref(db, `rooms/${ROOM_ID}`);
   const clean = JSON.parse(JSON.stringify(patch));
   update(gameRef, clean);
 };
 
-// ── Store Interface ────────────────────────────────────────────
 interface GameStore extends GameState {
   isConnected: boolean;
   round: number;
   setRound: (n: number) => void;
   initSync: () => () => void;
 
-  // Canvas
   placeCardOnCanvas: (templateId: string, x: number, y: number) => void;
   placeCardFromDeck: (deckId: string, x: number, y: number) => void;
   moveCard: (instanceId: string, x: number, y: number) => void;
@@ -145,7 +147,6 @@ interface GameStore extends GameState {
   bringToFront: (instanceId: string) => void;
   updateFreeCard: (instanceId: string, fields: Partial<Card & { rotation?: number }>) => void;
 
-  // Dice
   addDice: (x: number, y: number, sides?: FreeDice['sides']) => void;
   moveDice: (diceId: string, x: number, y: number) => void;
   moveDiceEnd: (diceId: string) => void;
@@ -154,12 +155,10 @@ interface GameStore extends GameState {
   removeDice: (diceId: string) => void;
   bringDiceToFront: (diceId: string) => void;
 
-  // Characters
   toggleHPBar: (characterId: string, index: number) => void;
   updateCharacterStat: (characterId: string, stat: 'attack' | 'defense', delta: number) => void;
   resetCharacterHP: (characterId: string) => void;
 
-  // Board Pieces
   addBoardPiece: (piece: Omit<BoardPiece, 'id' | 'zIndex'>) => void;
   moveBoardPiece: (pieceId: string, x: number, y: number) => void;
   moveBoardPieceEnd: (pieceId: string) => void;
@@ -167,7 +166,6 @@ interface GameStore extends GameState {
   updateBoardPieceLabel: (pieceId: string, label: string) => void;
   bringPieceToFront: (pieceId: string) => void;
 
-  // Deck Builder
   addCard: (card: Omit<Card, 'id'>) => void;
   updateCard: (id: string, card: Partial<Card>) => void;
   deleteCard: (id: string) => void;
@@ -176,27 +174,24 @@ interface GameStore extends GameState {
   updateDeckInfo: (deckId: string, info: { name?: string; backImage?: string }) => void;
   deleteDeck: (deckId: string) => void;
   clearTable: () => void;
+
+  discardCard: (instanceId: string) => void;
+  restoreDiscardPile: () => void;
 }
 
 export const useGameStore = create<GameStore>()((set, get) => ({
   ...initialState,
   isConnected: false,
 
-  // ── Firebase 同步初始化 ──────────────────────────────────────
   initSync: () => {
     const gameRef = ref(db, `rooms/${ROOM_ID}`);
-
     onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // ✅ 修復：Firebase 儲存 array 時可能轉成 object，用 toArray 確保還原成真正的 array
         const characters = toArray<Character>(data.characters, initialCharacters).map((c) => ({
           ...c,
-          // hpBars 也可能被 Firebase 轉成 object，同樣需要還原
           hpBars: toArray<boolean>(c.hpBars, Array(10).fill(true)),
         }));
-
-        // 修復：Firebase 會把空 array 刪掉，deck.cards 可能是 undefined
         const rawDecks = data.decks ?? initialDecks;
         const fixedDecks: typeof initialDecks = {};
         for (const deckId in rawDecks) {
@@ -205,17 +200,17 @@ export const useGameStore = create<GameStore>()((set, get) => ({
             cards: toArray<Card>(rawDecks[deckId].cards, []),
           };
         }
-
         set({
-          freeCards:   toArray<FreeCard>(data.freeCards,   []),
-          freeDice:    toArray<FreeDice>(data.freeDice,    getInitialDice()),
+          freeCards: toArray<FreeCard>(data.freeCards, []),
+          freeDice: (() => { const d = toArray<FreeDice>(data.freeDice, getInitialDice()); return d.length >= 2 ? d : getInitialDice(); })(),
           diceHistory: toArray<DiceResult>(data.diceHistory, []),
-          topZIndex:   data.topZIndex ?? 10,
+          topZIndex: data.topZIndex ?? 10,
           characters,
           boardPieces: toArray<BoardPiece>(data.boardPieces, getInitialBoardPieces()),
-          decks:       fixedDecks,
-          cards:       data.cards != null ? data.cards : {},
-          round:       data.round ?? 1,
+          decks: fixedDecks,
+          cards: data.cards != null ? data.cards : {},
+          round: data.round ?? 1,
+          discardPile: toArray<DiscardCard>(data.discardPile, []),
           isConnected: true,
         });
       } else {
@@ -230,21 +225,19 @@ export const useGameStore = create<GameStore>()((set, get) => ({
           decks: state.decks,
           cards: state.cards,
           round: state.round,
+          discardPile: state.discardPile,
         });
         set({ isConnected: true });
       }
     });
-
     return () => off(gameRef);
   },
 
-  // ── Round ────────────────────────────────────────────────────
   setRound: (n) => {
     set({ round: n });
     syncToFirebase({ round: n });
   },
 
-  // ── Canvas ──────────────────────────────────────────────────
   placeCardOnCanvas: (templateId, x, y) => {
     const state = get();
     const template = state.cards[templateId];
@@ -281,8 +274,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   },
 
   moveCardEnd: (_instanceId) => {
-    const newFreeCards = get().freeCards;
-    syncToFirebase({ freeCards: newFreeCards });
+    syncToFirebase({ freeCards: get().freeCards });
   },
 
   flipCard: (instanceId) => {
@@ -318,9 +310,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
 
   // ── Dice ────────────────────────────────────────────────────
   addDice: (x, y, sides = 12) => {
-    const newZ = get().topZIndex + 1;
-    const newDice: FreeDice = { id: `dice_${genId()}`, x, y, sides, currentValue: 1, isRolling: false, zIndex: newZ };
-    const newFreeDice = [...get().freeDice, newDice];
+    const state = get();
+    const newZ = state.topZIndex + 2;
+    // 新增時一次加兩顆，並排
+    const diceA: FreeDice = { id: `dice_${genId()}`, x, y, sides, currentValue: 1, isRolling: false, zIndex: newZ };
+    const diceB: FreeDice = { id: `dice_${genId()}_b`, x: x + 84, y, sides, currentValue: 1, isRolling: false, zIndex: newZ };
+    const newFreeDice = [...state.freeDice, diceA, diceB];
     set({ freeDice: newFreeDice, topZIndex: newZ });
     syncToFirebase({ freeDice: newFreeDice, topZIndex: newZ });
   },
@@ -339,8 +334,10 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const dice = state.freeDice.find((d) => d.id === diceId);
     if (!dice) return;
     const value = Math.floor(Math.random() * dice.sides) + 1;
-    const newResult: DiceResult = { id: genId(), value, max: dice.sides, timestamp: Date.now() };
     const newFreeDice = state.freeDice.map((d) => d.id === diceId ? { ...d, currentValue: value } : d);
+    // 歷史紀錄：只在兩顆都有新值時記錄總和（由 FreeDicePair 呼叫後，store 已更新兩顆）
+    // 簡化處理：每次 rollDice 都記錄單顆，UI 層面已顯示總和，不需雙重記錄
+    const newResult: DiceResult = { id: genId(), value, max: dice.sides, timestamp: Date.now() };
     const newDiceHistory = [newResult, ...state.diceHistory].slice(0, 20);
     set({ freeDice: newFreeDice, diceHistory: newDiceHistory });
     syncToFirebase({ freeDice: newFreeDice, diceHistory: newDiceHistory });
@@ -369,7 +366,6 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   toggleHPBar: (characterId, index) => {
     const newCharacters = get().characters.map((c) => {
       if (c.id !== characterId) return c;
-      // ✅ 修復：hpBars 從 Firebase 拿回來可能是 object，確保是 array
       const bars = Array.isArray(c.hpBars) ? c.hpBars : Object.values(c.hpBars) as boolean[];
       const newBars = [...bars];
       newBars[index] = !newBars[index];
@@ -510,5 +506,58 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const newBoardPieces = getInitialBoardPieces();
     set({ freeCards: [], decks: newDecks, boardPieces: newBoardPieces });
     syncToFirebase({ freeCards: [], decks: newDecks, boardPieces: newBoardPieces });
+  },
+
+  // ── Discard Pile ─────────────────────────────────────────────
+  discardCard: (instanceId) => {
+    const state = get();
+    const fCard = state.freeCards.find((c) => c.instanceId === instanceId);
+    if (!fCard) return;
+    if (state.discardPile.some((d) => d.instanceId === instanceId)) {
+      const newFreeCards = state.freeCards.filter((c) => c.instanceId !== instanceId);
+      set({ freeCards: newFreeCards });
+      syncToFirebase({ freeCards: newFreeCards });
+      return;
+    }
+    const discardCard: DiscardCard = {
+      instanceId: fCard.instanceId,
+      id: fCard.id,
+      name: fCard.name,
+      description: fCard.description,
+      type: fCard.type,
+      originDeckId: fCard.sourceDeckId ?? '',
+      backImage: fCard.backImage,
+      frontImage: fCard.frontImage,
+      value: fCard.value,
+      attack: fCard.attack,
+      health: fCard.health,
+    };
+    const newFreeCards = state.freeCards.filter((c) => c.instanceId !== instanceId);
+    const newDiscardPile = [...state.discardPile, discardCard];
+    set({ freeCards: newFreeCards, discardPile: newDiscardPile });
+    syncToFirebase({ freeCards: newFreeCards, discardPile: newDiscardPile });
+  },
+
+  restoreDiscardPile: () => {
+    const state = get();
+    if (state.discardPile.length === 0) return;
+    const newDecks = { ...state.decks };
+    for (const dCard of state.discardPile) {
+      const deckId = dCard.originDeckId;
+      if (!deckId || !newDecks[deckId]) continue;
+      const deck = newDecks[deckId];
+      const alreadyIn = deck.cards.some((c) => c.id === dCard.id);
+      if (alreadyIn) continue;
+      const templateCard = state.cards[dCard.id];
+      const cardToRestore = templateCard ?? {
+        id: dCard.id, name: dCard.name, description: dCard.description,
+        type: dCard.type, isFlipped: false, backImage: dCard.backImage,
+        value: dCard.value, attack: dCard.attack, health: dCard.health,
+      };
+      newDecks[deckId] = { ...deck, cards: [...deck.cards, cardToRestore] };
+    }
+    const newDiscardPile: DiscardCard[] = [];
+    set({ decks: newDecks, discardPile: newDiscardPile });
+    syncToFirebase({ decks: newDecks, discardPile: newDiscardPile });
   },
 }));
