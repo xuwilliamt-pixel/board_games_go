@@ -408,8 +408,8 @@ export const FreeDicePair: React.FC<FreeDicePairProps> = ({ diceA, diceB }) => {
 };
 
 // ── Legacy single die export (for backward compat) ────────────
-export const FreeDice: React.FC<{ dice: FreeDiceType }> = ({ dice }) => {
-  // This is kept for backward compatibility but the pair version is preferred.
-  // In FreeCanvas, replace two <FreeDice> with one <FreeDicePair>.
+export const FreeDice: React.FC<{ dice: FreeDiceType }> = (_props) => {
+  // Legacy export kept for backward compatibility.
+  // Use FreeDicePair in FreeCanvas instead.
   return null;
 };

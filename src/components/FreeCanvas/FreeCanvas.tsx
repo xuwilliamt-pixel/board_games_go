@@ -88,7 +88,7 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
     canvasSize.w || undefined,
     canvasSize.h || undefined,
   );
-  const { boardLeft, boardTop, boardW, boardH, handL, handW, handH, discardTop, discardH, pieceL, pieceW } = layout;
+  const { boardLeft, boardTop, boardH, handL, handW, handH, discardTop, discardH, pieceL, pieceW } = layout;
 
   const spawnCard = useCallback((deckId: string) => {
     const l = calcBoardLayout(
