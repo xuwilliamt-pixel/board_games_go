@@ -27,7 +27,6 @@ const CardPreview: React.FC<{
 
   const cardFrontBg = isDark ? '#18243D' : '#FFFFFF';
   const cardBorder = isDark ? 'rgba(255,255,255,0.12)' : '#D9E2F2';
-  const descColor = isDark ? 'rgba(255,255,255,0.55)' : '#55607A';
 
   return (
     <div className="flex flex-col items-center" style={{ gap: 8 }}>
