@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { FreeCard } from '../FreeCard/FreeCard';
-import { FreeDicePair } from '../FreeDice/FreeDice';
+import { FreeDiceSingle } from '../FreeDice/FreeDice';
 import { FreePiece } from '../FreePiece/FreePiece';
 import { BoardGrid } from '../BoardGrid/BoardGrid';
 
@@ -171,13 +171,6 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
     pointerEvents: 'none',
   };
 
-  // ── 將 freeDice 配對成一組組 FreeDicePair ──────────────────
-  // 策略：每兩顆一組（index 0+1, 2+3, ...），若奇數顆則最後一顆略過
-  const dicePairs: Array<{ a: (typeof freeDice)[0]; b: (typeof freeDice)[0] }> = [];
-  for (let i = 0; i + 1 < freeDice.length; i += 2) {
-    dicePairs.push({ a: freeDice[i], b: freeDice[i + 1] });
-  }
-
   return (
     <div
       ref={containerRef}
@@ -325,9 +318,9 @@ export const FreeCanvas: React.FC<FreeCanvasProps> = ({ theme }) => {
 
       {/* ── Floating elements ── */}
 
-      {/* 骰子：每兩顆配成一組 FreeDicePair */}
-      {dicePairs.map(({ a, b }) => (
-        <FreeDicePair key={`pair-${a.id}-${b.id}`} diceA={a} diceB={b} />
+      {/* ✅ 每顆骰子獨立渲染，可分開拖動 */}
+      {freeDice.map((d) => (
+        <FreeDiceSingle key={d.id} dice={d} />
       ))}
 
       {boardPieces.map((p) => <FreePiece key={p.id} piece={p} />)}
