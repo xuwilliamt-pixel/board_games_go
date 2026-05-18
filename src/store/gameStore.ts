@@ -546,17 +546,25 @@ export const useGameStore = create<GameStore>()((set, get) => ({
       const deckId = dCard.originDeckId;
       if (!deckId || !newDecks[deckId]) continue;
       const deck = newDecks[deckId];
-      const alreadyIn = deck.cards.some((c) => c.id === dCard.id);
-      if (alreadyIn) continue;
+      // 從 cards template 找回完整 Card 物件
       const templateCard = state.cards[dCard.id];
-      const cardToRestore = templateCard ?? {
-        id: dCard.id, name: dCard.name, description: dCard.description,
-        type: dCard.type, isFlipped: false, backImage: dCard.backImage,
-        value: dCard.value, attack: dCard.attack, health: dCard.health,
+      const cardToRestore: import('../types/game').Card = templateCard ?? {
+        id: dCard.id,
+        name: dCard.name,
+        description: dCard.description,
+        type: dCard.type,
+        isFlipped: false,
+        backImage: dCard.backImage,
+        frontImage: dCard.frontImage,
+        value: dCard.value,
+        attack: dCard.attack,
+        health: dCard.health,
       };
+      // 直接放回去，不做 duplicate 檢查
+      // （牌組本來就可以有多張相同 id 的牌，例如 4 張哥布林）
       newDecks[deckId] = { ...deck, cards: [...deck.cards, cardToRestore] };
     }
-    const newDiscardPile: DiscardCard[] = [];
+    const newDiscardPile: import('../types/game').DiscardCard[] = [];
     set({ decks: newDecks, discardPile: newDiscardPile });
     syncToFirebase({ decks: newDecks, discardPile: newDiscardPile });
   },
